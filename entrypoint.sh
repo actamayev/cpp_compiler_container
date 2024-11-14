@@ -4,7 +4,7 @@
 # Define paths
 WORKSPACE_DIR="/workspace"
 SRC_DIR="$WORKSPACE_DIR/src"
-INCLUDE_DIR="$WORKSPACE_DIR/include"
+INCLUDE_DIR="$SRC_DIR/include"
 
 # Ensure directories exist
 mkdir -p "$SRC_DIR"
