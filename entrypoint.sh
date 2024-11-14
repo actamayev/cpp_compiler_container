@@ -38,13 +38,9 @@ void user_code() {
 }
 EOL
 
-# Confirm that the files were written (for debugging)
-echo "Generated user_code.cpp:"
-cat "$SRC_DIR/user_code.cpp"
-
 # Move to the workspace directory and compile
 cd "$WORKSPACE_DIR"
 platformio run
 
 # Copy the firmware to the mounted volume
-echo "Firmware compilation completed. Binary location: .pio/build/esp32dev/firmware.bin
+cat .pio/build/esp32dev/firmware.bin
