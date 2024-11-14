@@ -1,14 +1,47 @@
+# entrypoint.sh
 #!/bin/bash
 
 # Define paths
 WORKSPACE_DIR="/workspace"
-USER_CODE_FILE="$WORKSPACE_DIR/src/user_code.cpp"
+SRC_DIR="$WORKSPACE_DIR/src"
+INCLUDE_DIR="$WORKSPACE_DIR/include"
 
-# Ensure the src directory exists
-mkdir -p "$WORKSPACE_DIR/src"
+# Ensure directories exist
+mkdir -p "$SRC_DIR"
+mkdir -p "$INCLUDE_DIR"
 
-# Write the user code from the environment variable to `user_code.cpp`
-echo -e "$USER_CODE" > "$USER_CODE_FILE"
+# Check if the USER_CODE environment variable is set
+if [ -z "$USER_CODE" ]; then
+    echo "USER_CODE environment variable is empty or not set. Exiting."
+    exit 1
+fi
+
+# Create the header file if it doesn't exist
+if [ ! -f "$INCLUDE_DIR/user_code.h" ]; then
+    cat > "$INCLUDE_DIR/user_code.h" << EOL
+#ifndef USER_CODE_H
+#define USER_CODE_H
+
+void user_code();
+
+#endif
+EOL
+fi
+
+# Create the implementation file
+cat > "$SRC_DIR/user_code.cpp" << EOL
+#include "user_code.h"
+#include <Arduino.h>
+#include "config.h"
+
+void user_code() {
+    ${USER_CODE}
+}
+EOL
+
+# Confirm that the files were written (for debugging)
+echo "Generated user_code.cpp:"
+cat "$SRC_DIR/user_code.cpp"
 
 # Move to the workspace directory and compile
 cd "$WORKSPACE_DIR"
