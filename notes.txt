@@ -1,4 +1,5 @@
 Run `docker build -t cpp-compiler .` to build the docker image (installs necessary environment stuff)
-	This takes a while but only needs to be done once (unless the Dockerfile is changed). It downloads the Espressif IDF, Python (for PlatformIO)
+	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
+	It downloads the Espressif IDF, Python (for PlatformIO)
 
 Inside the docker root should be the Dockerfile, and entrypoint.sh
