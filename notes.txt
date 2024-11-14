@@ -1,0 +1,3 @@
+Run `docker build -t cpp-compiler .` to build the docker image (installs necessary environment stuff)
+	This takes a while but only needs to be done once. It downloads the Espressif IDF
+Run `docker run -it --rm -v "$(pwd)/build:/workspace/build" cpp-compiler /entrypoint.sh "$(cat user_code.cpp)"` to run the actual container
