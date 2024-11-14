@@ -27,20 +27,28 @@ void user_code();
 EOL
 fi
 
-# Create the implementation file
-cat > "$SRC_DIR/user_code.cpp" << EOL
+# Create the implementation file with proper indentation
+cat > "$SRC_DIR/user_code.cpp" << 'EOL'
 #include <Arduino.h>
 #include "./include/user_code.h"
 #include "./include/config.h"
 
 void user_code() {
-    ${USER_CODE}
-}
 EOL
+
+# Append the user code with proper indentation
+echo "    ${USER_CODE}" >> "$SRC_DIR/user_code.cpp"
+
+# Close the function
+echo "}" >> "$SRC_DIR/user_code.cpp"
+
+# Debug output
+echo "Generated user_code.cpp:"
+cat "$SRC_DIR/user_code.cpp"
 
 # Move to the workspace directory and compile
 cd "$WORKSPACE_DIR"
 platformio run
 
-# Copy the firmware to the mounted volume
+# Output the binary directly to stdout
 cat .pio/build/esp32dev/firmware.bin
