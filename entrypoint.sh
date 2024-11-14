@@ -47,4 +47,4 @@ cd "$WORKSPACE_DIR"
 platformio run
 
 # Copy the firmware to the mounted volume
-cp .pio/build/esp32dev/firmware.bin .pio/build/esp32dev/
+echo "Firmware compilation completed. Binary location: .pio/build/esp32dev/firmware.bin
