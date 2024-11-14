@@ -1,12 +1,4 @@
 Run `docker build -t cpp-compiler .` to build the docker image (installs necessary environment stuff)
 	This takes a while but only needs to be done once (unless the Dockerfile is changed). It downloads the Espressif IDF, Python (for PlatformIO)
-Run:
-	For local dev: `
-		docker run --rm \
-		-v "/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware:/workspace" \
-		-v "$(pwd)/build:/workspace/build" \
-		cpp-compiler /entrypoint.sh "$(cat user_code.cpp)"
-	`
-		This points the docker to the local firmware. This is run by the Express server
 
-Inside the docker root should be the Dockerfile, and entrpoint.sh
+Inside the docker root should be the Dockerfile, and entrypoint.sh

@@ -1,4 +1,3 @@
-# entrypoint.sh
 #!/bin/bash
 
 # Define paths
@@ -30,9 +29,9 @@ fi
 
 # Create the implementation file
 cat > "$SRC_DIR/user_code.cpp" << EOL
-#include "user_code.h"
 #include <Arduino.h>
-#include "config.h"
+#include "./include/user_code.h"
+#include "./include/config.h"
 
 void user_code() {
     ${USER_CODE}
@@ -47,5 +46,5 @@ cat "$SRC_DIR/user_code.cpp"
 cd "$WORKSPACE_DIR"
 platformio run
 
-# Print the location of the compiled firmware binary
-echo "Firmware compiled successfully! Check the .pio/build directory for the binary."
+# Copy the firmware to the mounted volume
+cp .pio/build/esp32dev/firmware.bin .pio/build/esp32dev/
