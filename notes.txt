@@ -1,3 +1,12 @@
 Run `docker build -t cpp-compiler .` to build the docker image (installs necessary environment stuff)
 	This takes a while but only needs to be done once. It downloads the Espressif IDF
-Run `docker run -it --rm -v "$(pwd)/build:/workspace/build" cpp-compiler /entrypoint.sh "$(cat user_code.cpp)"` to run the actual container
+Run:
+	For local dev: `
+		docker run --rm \
+		-v "/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware:/workspace" \
+		-v "$(pwd)/build:/workspace/build" \
+		cpp-compiler /entrypoint.sh "$(cat user_code.cpp)"
+	`
+		This points the docker to the local firmware
+
+Inside the docker root should be the Dockerfile, and entrpoint.sh
