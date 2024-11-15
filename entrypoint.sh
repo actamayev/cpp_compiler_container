@@ -51,9 +51,10 @@ cat "$SRC_DIR/user_code.cpp"
 # Move to the workspace directory and compile
 cd "$WORKSPACE_DIR"
 
-# Run platformio with detailed output
-platformio run -v || {
+# Run platformio with optimizations
+platformio run --silent || {
     echo "PlatformIO build failed"
+    platformio run -v  # Run again with verbose output for debugging
     exit 1
 }
 
