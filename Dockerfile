@@ -27,5 +27,9 @@ RUN mkdir -p /root/.platformio
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Default command to run the entrypoint
-CMD ["/entrypoint.sh"]
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD platformio platform list | grep espressif32 || exit 1
+
+# Default command to keep container running
+CMD ["tail", "-f", "/dev/null"]

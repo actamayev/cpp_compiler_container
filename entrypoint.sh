@@ -6,10 +6,12 @@ set -e  # Exit on any error
 WORKSPACE_DIR="/workspace"
 SRC_DIR="$WORKSPACE_DIR/src"
 INCLUDE_DIR="$SRC_DIR/include"
+BUILD_DIR="$WORKSPACE_DIR/.pio/build/esp32dev"
 
 # Ensure directories exist
 mkdir -p "$SRC_DIR"
 mkdir -p "$INCLUDE_DIR"
+mkdir -p "$BUILD_DIR"
 
 # Check if the USER_CODE environment variable is set
 if [ -z "$USER_CODE" ]; then
@@ -17,7 +19,7 @@ if [ -z "$USER_CODE" ]; then
     exit 1
 fi
 
-# Create the header file if it doesn't exist
+# Create the header file if it doesn't exist (this rarely changes)
 if [ ! -f "$INCLUDE_DIR/user_code.h" ]; then
     cat > "$INCLUDE_DIR/user_code.h" << EOL
 #ifndef USER_CODE_H
@@ -48,21 +50,21 @@ echo "}" >> "$SRC_DIR/user_code.cpp"
 echo "Generated user_code.cpp:"
 cat "$SRC_DIR/user_code.cpp"
 
-# Move to the workspace directory and compile
+# Move to the workspace directory
 cd "$WORKSPACE_DIR"
 
-# Run platformio with optimizations
-platformio run --silent || {
-    echo "PlatformIO build failed"
-    platformio run -v  # Run again with verbose output for debugging
+# Try silent build first
+if ! platformio run --silent; then
+    echo "Initial build failed, running with verbose output..."
+    platformio run -v
     exit 1
-}
+fi
 
 # Check if the binary exists
-if [ ! -f ".pio/build/esp32dev/firmware.bin" ]; then
+if [ ! -f "$BUILD_DIR/firmware.bin" ]; then
     echo "Firmware binary not found after compilation"
     exit 1
 fi
 
-# Output the binary to stdout
-cat .pio/build/esp32dev/firmware.bin
+# Output the binary
+cat "$BUILD_DIR/firmware.bin"
