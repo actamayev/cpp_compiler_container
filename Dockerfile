@@ -1,35 +1,41 @@
-# Dockerfile for ESP32 C++ Compilation Environment
-FROM espressif/idf:latest
+# Use Python 3.13 as base
+FROM python:3.13-slim
 
-# Install Python dependencies and create a virtual environment
+# Install required packages
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y \
+    git \
+    curl \
+    udev \
+    build-essential \
+    bsdmainutils \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a virtual environment for PlatformIO and install it
-RUN python3 -m venv /opt/platformio-venv && \
-    /opt/platformio-venv/bin/pip install platformio
+# Install PlatformIO
+RUN python3 -m pip install --no-cache-dir platformio==6.1.16
 
-# Add PlatformIO to PATH
-ENV PATH="/opt/platformio-venv/bin:$PATH"
-
-# Pre-install ESP32 platform
-RUN platformio platform install espressif32
-
-# Set up working directory
+# Create workspace directory
 WORKDIR /workspace
 
-# Create cache directory
-RUN mkdir -p /root/.platformio
+# Pre-install ESP32 platform only
+RUN platformio platform install espressif32
 
-# Copy entrypoint script and make it executable
+# Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Create necessary directories
+RUN mkdir -p /workspace/src/include
+
+# Verify PlatformIO installation
+RUN platformio --version
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD platformio platform list | grep espressif32 || exit 1
 
-# Default command to keep container running
+# Set environment variable for PlatformIO cache
+ENV PLATFORMIO_CACHE_DIR="/root/.platformio"
+
+# Keep container running
 CMD ["tail", "-f", "/dev/null"]
