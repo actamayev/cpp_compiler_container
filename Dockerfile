@@ -9,6 +9,7 @@ RUN apt-get update && \
     udev \
     build-essential \
     bsdmainutils \
+    coreutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PlatformIO
@@ -27,12 +28,9 @@ RUN chmod +x /entrypoint.sh
 # Create necessary directories
 RUN mkdir -p /workspace/src/include
 
-# Verify PlatformIO installation
-RUN platformio --version
-
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD platformio platform list | grep espressif32 || exit 1
+# Verify installations
+RUN platformio --version && \
+    dd --version > /dev/null 2>&1
 
 # Set environment variable for PlatformIO cache
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio"

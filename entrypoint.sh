@@ -1,6 +1,14 @@
 #!/bin/bash
 
-set -e  # Exit on any error
+# Function to log to stderr
+log() {
+    echo "[INFO] $1" >&2
+}
+
+error() {
+    echo "[ERROR] $1" >&2
+    exit 1
+}
 
 # Define paths
 WORKSPACE_DIR="/workspace"
@@ -8,18 +16,14 @@ SRC_DIR="$WORKSPACE_DIR/src"
 INCLUDE_DIR="$SRC_DIR/include"
 BUILD_DIR="$WORKSPACE_DIR/.pio/build/esp32dev"
 
-echo "Starting compilation process..." >&2
-echo "Workspace dir: $WORKSPACE_DIR" >&2
+log "Starting compilation process..."
 
 # Ensure directories exist
-mkdir -p "$SRC_DIR"
-mkdir -p "$INCLUDE_DIR"
-mkdir -p "$BUILD_DIR"
+mkdir -p "$SRC_DIR" "$INCLUDE_DIR" "$BUILD_DIR"
 
 # Check if the USER_CODE environment variable is set
 if [ -z "$USER_CODE" ]; then
-    echo "USER_CODE environment variable is empty or not set. Exiting." >&2
-    exit 1
+    error "USER_CODE environment variable is empty or not set"
 fi
 
 # Create the header file if it doesn't exist
@@ -43,40 +47,40 @@ cat > "$SRC_DIR/user_code.cpp" << 'EOCPP'
 void user_code() {
 EOCPP
 
-# Append the user code
+# Append the user code and close the function
 echo "${USER_CODE//\'}" >> "$SRC_DIR/user_code.cpp"
-
-# Close the function
 echo "}" >> "$SRC_DIR/user_code.cpp"
 
-# Debug output
-echo "Generated user_code.cpp:" >&2
+log "Generated user_code.cpp:"
 cat "$SRC_DIR/user_code.cpp" >&2
 
-# Move to the workspace directory
+# Build the project
 cd "$WORKSPACE_DIR"
 
-# Clean the build directory
-echo "Cleaning build directory..." >&2
-platformio run --target clean
+log "Cleaning build directory..."
+platformio run --target clean >&2
 
-# Try build
-echo "Starting PlatformIO build..." >&2
-if ! platformio run --silent; then
-    echo "Build failed, running with verbose output..." >&2
-    platformio run -v
-    exit 1
+log "Starting PlatformIO build..."
+if ! platformio run --silent >&2; then
+    error "Build failed"
 fi
 
-# Check if the binary exists and verify its size
+# Check if binary exists
 if [ ! -f "$BUILD_DIR/firmware.bin" ]; then
-    echo "Firmware binary not found after compilation" >&2
-    exit 1
+    error "Firmware binary not found after compilation"
 fi
 
-# Output binary file size and info to stderr for debugging
-echo "Binary details:" >&2
+# Output binary info to stderr
+log "Binary details:"
 ls -l "$BUILD_DIR/firmware.bin" >&2
 
-# Important: Send ONLY the binary data to stdout, all other output to stderr
+# Verify binary header
+first_byte=$(od -An -t x1 -N 1 "$BUILD_DIR/firmware.bin" | tr -d ' ')
+log "First byte of binary: 0x$first_byte"
+
+if [ "$first_byte" != "e9" ]; then
+    error "Invalid binary header (expected 0xE9, got 0x$first_byte)"
+fi
+
+# Output only the binary to stdout
 cat "$BUILD_DIR/firmware.bin"
