@@ -41,16 +41,15 @@ fi
 
 # Check if user code has changed
 TEMP_FILE=$(mktemp)
-cat > "$TEMP_FILE" << 'EOCPP'
+cat > "$TEMP_FILE" << EOL
 #include <Arduino.h>
 #include "./include/user_code.h"
 #include "./include/config.h"
 
 void user_code() {
-EOCPP
-
-echo "${USER_CODE//\'}" >> "$TEMP_FILE"
-echo "}" >> "$TEMP_FILE"
+${USER_CODE//\'}
+}
+EOL
 
 # Only update user_code.cpp if content has changed
 if [ ! -f "$USER_CODE_FILE" ] || ! cmp -s "$TEMP_FILE" "$USER_CODE_FILE"; then
