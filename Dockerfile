@@ -14,7 +14,6 @@ RUN apt-get update && \
 
 # Set environment variables
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
-    PLATFORMIO_BUILD_FLAGS="-j 2" \
     PLATFORMIO_UPLOAD_SPEED="921600"
 
 # Install PlatformIO with specific version
@@ -23,7 +22,7 @@ RUN python3 -m pip install --no-cache-dir platformio==6.1.16
 # Create a temporary project directory for installing dependencies
 WORKDIR /tmp/pio-init
 
-# Initialize a temporary PlatformIO project
+# Initialize a temporary PlatformIO project and install dependencies
 RUN platformio init --board esp32dev && \
     platformio platform install espressif32 && \
     platformio lib install \
@@ -44,7 +43,7 @@ RUN chmod +x /entrypoint.sh
 # Create volume mount points
 VOLUME ["/root/.platformio", "/workspace"]
 
-# Set workspace directory
+# Set final workspace directory
 WORKDIR /workspace
 
 CMD ["tail", "-f", "/dev/null"]

@@ -68,7 +68,7 @@ cd "$WORKSPACE_DIR"
 
 if [ "$NEEDS_REBUILD" = true ] || [ ! -f "$BUILD_DIR/firmware.bin" ]; then
     log "Starting PlatformIO build..."
-    if ! PLATFORMIO_BUILD_FLAGS="-j 2" platformio run --silent --environment esp32dev; then
+    if ! platformio run -j 2 --silent --environment esp32dev; then
         error "Build failed"
     fi
 else
