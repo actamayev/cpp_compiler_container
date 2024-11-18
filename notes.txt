@@ -1,0 +1,26 @@
+Run `docker build -t cpp-compiler .` to build the docker image (installs necessary environment stuff)
+	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
+	It downloads the Espressif IDF, Python (for PlatformIO)
+
+Inside the docker root should be the Dockerfile, and entrypoint.sh
+
+To delete all containers/images/volumes/cache:
+	docker stop $(docker ps -a -q)
+	docker rm $(docker ps -a -q)
+	docker rmi $(docker images -a -q)
+	docker volume rm $(docker volume ls -q)
+	docker system prune -a --volumes
+	docker volume rm pio-cache
+
+To verify everything is clean:
+	# Check containers
+	docker ps -a
+
+	# Check images
+	docker images
+
+	# Check volumes
+	docker volume ls
+
+	# Check overall docker disk usage
+	docker system df
