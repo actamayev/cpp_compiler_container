@@ -1,9 +1,9 @@
-# Use Python 3.13 as base
-FROM python:3.13-slim
+# Use Python 3.13 slim-bullseye for better performance
+FROM python:3.13-slim-bullseye
 
-# Install required packages
+# Install required packages in a single layer
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     git \
     curl \
     udev \
@@ -12,28 +12,39 @@ RUN apt-get update && \
     coreutils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PlatformIO
+# Set environment variables
+ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
+    PLATFORMIO_UPLOAD_SPEED="921600"
+
+# Install PlatformIO with specific version
 RUN python3 -m pip install --no-cache-dir platformio==6.1.16
 
-# Create workspace directory
-WORKDIR /workspace
+# Create a temporary project directory for installing dependencies
+WORKDIR /tmp/pio-init
 
-# Pre-install ESP32 platform only
-RUN platformio platform install espressif32
-
-# Copy entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Create necessary directories
-RUN mkdir -p /workspace/src/include
+# Initialize a temporary PlatformIO project and install dependencies
+RUN platformio init --board esp32-s3-devkitc-1 && \
+    platformio platform install espressif32 && \
+    platformio lib install \
+        "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
+        "adafruit/Adafruit VL53L1X @ ^3.1.0" \
+        "adafruit/Adafruit BusIO @ ^1.14.1" \
+        "bblanchon/ArduinoJson@^7.2.1" \
+        "adafruit/Adafruit NeoPixel" && \
+    rm -rf /tmp/pio-init
 
 # Verify installations
 RUN platformio --version && \
     dd --version > /dev/null 2>&1
 
-# Set environment variable for PlatformIO cache
-ENV PLATFORMIO_CACHE_DIR="/root/.platformio"
+# Copy and prepare entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Keep container running
+# Create volume mount points
+VOLUME ["/root/.platformio", "/workspace"]
+
+# Set final workspace directory
+WORKDIR /workspace
+
 CMD ["tail", "-f", "/dev/null"]
