@@ -23,13 +23,14 @@ RUN python3 -m pip install --no-cache-dir platformio==6.1.16
 WORKDIR /tmp/pio-init
 
 # Initialize a temporary PlatformIO project and install dependencies
-RUN platformio init --board esp32dev && \
+RUN platformio init --board esp32-s3-devkitc-1 && \
     platformio platform install espressif32 && \
     platformio lib install \
-        "gilmaimon/ArduinoWebsockets@^0.5.4" \
-        "adafruit/Adafruit VL53L1X@^3.1.0" \
-        "adafruit/Adafruit BusIO@^1.14.1" \
-        "bblanchon/ArduinoJson@^7.2.0" && \
+        "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
+        "adafruit/Adafruit VL53L1X @ ^3.1.0" \
+        "adafruit/Adafruit BusIO @ ^1.14.1" \
+        "bblanchon/ArduinoJson@^7.2.1" \
+        "adafruit/Adafruit NeoPixel" && \
     rm -rf /tmp/pio-init
 
 # Verify installations

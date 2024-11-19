@@ -14,7 +14,7 @@ error() {
 WORKSPACE_DIR="/workspace"
 SRC_DIR="$WORKSPACE_DIR/src"
 INCLUDE_DIR="$SRC_DIR/include"
-BUILD_DIR="$WORKSPACE_DIR/.pio/build/esp32dev"
+BUILD_DIR="$WORKSPACE_DIR/.pio/build/esp32-s3-devkitc-1"
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
 HEADER_FILE="$INCLUDE_DIR/user_code.h"
 
@@ -42,9 +42,9 @@ fi
 # Check if user code has changed
 TEMP_FILE=$(mktemp)
 cat > "$TEMP_FILE" << EOL
-#include <Arduino.h>
-#include "./include/user_code.h"
 #include "./include/config.h"
+#include "./include/rgb_led.h"
+#include "./include/user_code.h"
 
 void user_code() {
 ${USER_CODE//\'}
@@ -67,7 +67,7 @@ cd "$WORKSPACE_DIR"
 
 if [ "$NEEDS_REBUILD" = true ] || [ ! -f "$BUILD_DIR/firmware.bin" ]; then
     log "Starting PlatformIO build..."
-    if ! platformio run -j 2 --silent --environment esp32dev; then
+    if ! platformio run -j 2 --silent --environment esp32-s3-devkitc-1; then
         error "Build failed"
     fi
 else
