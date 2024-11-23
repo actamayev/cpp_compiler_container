@@ -103,9 +103,14 @@ fi
 # Build the project only if needed
 cd "$WORKSPACE_DIR"
 
+# In entrypoint.sh, before the platformio run command:
 if [ "$NEEDS_REBUILD" = true ] || [ ! -f "$BUILD_DIR/firmware.bin" ]; then
     log "Starting PlatformIO build..."
-    if ! platformio run -j 2 --silent --environment esp32-s3-devkitc-1; then
+    
+    # Create or update platformio.ini with build flags
+    sed -i "s/^build_flags.*$/build_flags = ${BUILD_FLAGS}/" platformio.ini
+    
+    if ! platformio run -j 2 --silent --environment ${ENVIRONMENT}; then
         error "Build failed"
     fi
 else
