@@ -10,19 +10,25 @@ RUN apt-get update && \
     build-essential \
     bsdmainutils \
     coreutils \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
-    PLATFORMIO_UPLOAD_SPEED="921600"
+    PLATFORMIO_UPLOAD_SPEED="921600" \
+    WORKSPACE_DIR="/workspace" \
+    AWS_DEFAULT_REGION="us-east-1"
 
-# Install PlatformIO with specific version
-RUN python3 -m pip install --no-cache-dir platformio==6.1.16
+# Install AWS CLI and PlatformIO
+RUN pip3 install --no-cache-dir \
+    awscli \
+    platformio==6.1.16
 
-# Create a temporary project directory for installing dependencies
-WORKDIR /tmp/pio-init
+# Create necessary directories
+RUN mkdir -p /workspace
 
 # Initialize a temporary PlatformIO project and install dependencies
+WORKDIR /tmp/pio-init
 RUN platformio init --board esp32-s3-devkitc-1 && \
     platformio platform install espressif32 && \
     platformio lib install \
@@ -35,6 +41,7 @@ RUN platformio init --board esp32-s3-devkitc-1 && \
 
 # Verify installations
 RUN platformio --version && \
+    aws --version && \
     dd --version > /dev/null 2>&1
 
 # Copy and prepare entrypoint
@@ -47,4 +54,5 @@ VOLUME ["/root/.platformio", "/workspace"]
 # Set final workspace directory
 WORKDIR /workspace
 
-CMD ["tail", "-f", "/dev/null"]
+# Default command
+CMD ["/entrypoint.sh"]

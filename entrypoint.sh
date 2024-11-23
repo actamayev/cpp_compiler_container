@@ -18,14 +18,52 @@ BUILD_DIR="$WORKSPACE_DIR/.pio/build/esp32-s3-devkitc-1"
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
 HEADER_FILE="$INCLUDE_DIR/user_code.h"
 
+# Function to fetch and extract firmware from S3
+fetch_firmware() {
+    local env="${ENVIRONMENT:-local}"
+    local s3_bucket="staging-pip-firmware"  # default to staging
+
+    if [ "$env" = "production" ]; then
+        s3_bucket="production-pip-firmware"
+    fi
+
+    local s3_key="firmware.zip"  # or whatever naming convention you prefer
+
+    if [ "$env" != "local" ]; then
+        log "Fetching firmware from S3 bucket: ${s3_bucket} for environment: $env"
+        if ! aws s3 cp "s3://${s3_bucket}/${s3_key}" /tmp/firmware.zip; then
+            error "Failed to fetch firmware from S3"
+        fi
+
+        log "Extracting firmware..."
+        rm -rf "$WORKSPACE_DIR"/*
+        unzip -q /tmp/firmware.zip -d "$WORKSPACE_DIR"
+        rm /tmp/firmware.zip
+    fi
+}
+
+# Initialize workspace
+init_workspace() {
+    log "Initializing workspace..."
+    mkdir -p "$SRC_DIR" "$INCLUDE_DIR" "$BUILD_DIR"
+}
+
+# Main execution starts here
 log "Starting compilation process..."
 
-# Ensure directories exist
-mkdir -p "$SRC_DIR" "$INCLUDE_DIR" "$BUILD_DIR"
+# Initialize workspace
+init_workspace
+
+# Fetch firmware if needed
+fetch_firmware
 
 # Check if the USER_CODE environment variable is set
 if [ -z "$USER_CODE" ]; then
     error "USER_CODE environment variable is empty or not set"
+fi
+
+if [ -z "$PIP_ID" ]; then
+    log "PIP_ID not set, will use default based on ENVIRONMENT"
 fi
 
 # Create the header file only if it doesn't exist
