@@ -28,6 +28,9 @@ case "$1" in
         # Remove old image
         docker rmi ${IMAGE_NAME}:test 2>/dev/null
         
+        # Create a named volume for workspace if it doesn't exist
+        docker volume create cpp-compiler-workspace || true
+
         # Rebuild local
         docker build -t ${IMAGE_NAME}:test . || error "Local build failed"
         echo "Local environment updated successfully!"

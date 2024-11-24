@@ -39,6 +39,7 @@ jobs:
           # Test with minimal config
           echo "Testing simple delay compilation..."
           docker run --rm \
+            -v cpp-compiler-workspace:/workspace \
             -e USER_CODE='delay(1000);' \
             -e ENVIRONMENT=local \
             -e PIP_ID=test123 \
@@ -49,6 +50,7 @@ jobs:
           for env in "local" "staging" "production"; do
             echo "Testing $env environment..."
             docker run --rm \
+              -v cpp-compiler-workspace:/workspace \
               -e USER_CODE='delay(1000);' \
               -e ENVIRONMENT=$env \
               -e PIP_ID=test123 \
