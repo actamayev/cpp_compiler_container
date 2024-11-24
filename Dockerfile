@@ -19,25 +19,26 @@ ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
     WORKSPACE_DIR="/workspace" \
     AWS_DEFAULT_REGION="us-east-1"
 
-# Install dependencies and set up workspace in a single layer
+# Install dependencies
 RUN pip3 install --no-cache-dir \
         awscli==1.32.17 \
-        platformio==6.1.16 \
-    && mkdir -p /workspace
+        platformio==6.1.16
 
-WORKDIR /tmp
-RUN platformio init --board esp32-s3-devkitc-1 \
-    && platformio platform install espressif32 \
-    && platformio lib install \
+# Create workspace directory
+RUN mkdir -p /workspace
+
+WORKDIR /workspace
+
+# Create basic platformio.ini for initialization
+RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframework = arduino" > platformio.ini && \
+    platformio platform install espressif32 && \
+    platformio lib install \
         "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
         "adafruit/Adafruit VL53L1X @ ^3.1.0" \
         "adafruit/Adafruit BusIO @ ^1.14.1" \
         "bblanchon/ArduinoJson@^7.2.1" \
-        "adafruit/Adafruit NeoPixel" \
-    && platformio --version \
-    && aws --version \
-    && dd --version > /dev/null 2>&1 \
-    && rm -rf /tmp/pio-init
+        "adafruit/Adafruit NeoPixel" && \
+    rm platformio.ini  # Remove the temporary platformio.ini
 
 # Copy and prepare entrypoint
 COPY entrypoint.sh /entrypoint.sh
@@ -45,9 +46,6 @@ RUN chmod +x /entrypoint.sh
 
 # Create volume mount points
 VOLUME ["/root/.platformio", "/workspace"]
-
-# Set final workspace directory
-WORKDIR /workspace
 
 # Default command
 CMD ["/entrypoint.sh"]
