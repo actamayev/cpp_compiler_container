@@ -11,6 +11,7 @@ RUN apt-get update && \
         bsdmainutils \
         coreutils \
         python3-pip \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
@@ -21,7 +22,7 @@ ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
 
 # Install dependencies
 RUN pip3 install --no-cache-dir \
-        awscli==1.32.17 \
+        awscli==1.36.9 \
         platformio==6.1.16
 
 # Create workspace directory
