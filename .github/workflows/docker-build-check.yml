@@ -1,0 +1,44 @@
+name: Docker Build Check
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - 'entrypoint.sh'
+      - '.github/workflows/**'
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check shell script syntax
+        run: |
+          bash -n entrypoint.sh
+
+      - name: Hadolint - Dockerfile linter
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: cpp-compiler:test
+
+      - name: Test container
+        run: |
+          # Basic test - try to compile a simple program
+          docker run --rm \
+            -e USER_CODE='delay(1000);' \
+            -e ENVIRONMENT=local \
+            -e PIP_ID=test123 \
+            cpp-compiler:test
