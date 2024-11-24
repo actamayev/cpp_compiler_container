@@ -1,16 +1,12 @@
-Run `docker build -t cpp-compiler .` to build the docker image (installs necessary environment stuff)
+Whenever changing Dockerfile/entrypoint.sh, run `./rebuild.sh local`
 	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
 	It downloads the Espressif IDF, Python (for PlatformIO)
 
-Inside the docker root should be the Dockerfile, and entrypoint.sh
+After confirming everything works locally, run `./rebuild.sh staging`
 
-To delete all containers/images/volumes/cache:
-	docker stop $(docker ps -a -q)
-	docker rm $(docker ps -a -q)
-	docker rmi $(docker images -a -q)
-	docker volume rm $(docker volume ls -q)
-	docker system prune -a --volumes
-	docker volume rm pio-cache
+After confirming everything works in staging, run `./rebuild.sh production`
+
+To delete all containers/images/volumes/cache: `./cleanup.sh`
 
 To verify everything is clean:
 	# Check containers
@@ -24,16 +20,3 @@ To verify everything is clean:
 
 	# Check overall docker disk usage
 	docker system df
-
-# Common login (only need once)
-	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 481665120319.dkr.ecr.us-east-1.amazonaws.com
-
-# For Staging:
-	docker build -t firmware-compiler:staging .
-	docker tag firmware-compiler:staging 481665120319.dkr.ecr.us-east-1.amazonaws.com/firmware-compiler:staging
-	docker push 481665120319.dkr.ecr.us-east-1.amazonaws.com/firmware-compiler:staging
-
-# For Production:
-	docker build -t firmware-compiler:production .
-	docker tag firmware-compiler:production 481665120319.dkr.ecr.us-east-1.amazonaws.com/firmware-compiler:production
-	docker push 481665120319.dkr.ecr.us-east-1.amazonaws.com/firmware-compiler:production

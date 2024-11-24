@@ -10,17 +10,20 @@ error() {
     exit 1
 }
 
+# Get environment, default to local if not set
+pio_env="${ENVIRONMENT:-local}"
+
 # Define paths
 WORKSPACE_DIR="/workspace"
 SRC_DIR="$WORKSPACE_DIR/src"
 INCLUDE_DIR="$SRC_DIR/include"
-BUILD_DIR="$WORKSPACE_DIR/.pio/build/esp32-s3-devkitc-1"
+BUILD_DIR="$WORKSPACE_DIR/.pio/build/${pio_env}"  # Changed to use environment-specific build directory
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
 HEADER_FILE="$INCLUDE_DIR/user_code.h"
 
 # Function to fetch and extract firmware from S3
 fetch_firmware() {
-    local env="${ENVIRONMENT:-local}"
+    local env="$pio_env"  # Use the same environment variable
     local s3_bucket="staging-pip-firmware"  # default to staging
 
     if [ "$env" = "production" ]; then
@@ -50,6 +53,7 @@ init_workspace() {
 
 # Main execution starts here
 log "Starting compilation process..."
+log "Using environment: ${pio_env}"
 
 # Initialize workspace
 init_workspace
@@ -103,14 +107,11 @@ fi
 # Build the project only if needed
 cd "$WORKSPACE_DIR"
 
-# In entrypoint.sh, before the platformio run command:
 if [ "$NEEDS_REBUILD" = true ] || [ ! -f "$BUILD_DIR/firmware.bin" ]; then
     log "Starting PlatformIO build..."
+    log "Using PlatformIO environment: ${pio_env}"
     
-    # Create or update platformio.ini with build flags
-    sed -i "s/^build_flags.*$/build_flags = ${BUILD_FLAGS}/" platformio.ini
-    
-    if ! platformio run -j 2 --silent --environment ${ENVIRONMENT}; then
+    if ! platformio run --environment "$pio_env" -j 2 --silent; then
         error "Build failed"
     fi
 else
