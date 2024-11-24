@@ -21,11 +21,12 @@ ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
 
 # Install dependencies and set up workspace in a single layer
 RUN pip3 install --no-cache-dir \
-        awscli==1.36.9 \
+        awscli==1.32.17 \
         platformio==6.1.16 \
-    && mkdir -p /workspace \
-    && cd /tmp \
-    && platformio init --board esp32-s3-devkitc-1 \
+    && mkdir -p /workspace
+
+WORKDIR /tmp
+RUN platformio init --board esp32-s3-devkitc-1 \
     && platformio platform install espressif32 \
     && platformio lib install \
         "gilmaimon/ArduinoWebsockets @ ^0.5.4" \

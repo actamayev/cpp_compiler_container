@@ -1,0 +1,6 @@
+ignored:
+  - DL3008  # If you want to ignore specific rules
+rules:
+  trustedRegistries:
+    - docker.io
+    - ghcr.io
