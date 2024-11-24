@@ -1,11 +1,6 @@
 name: Docker Build Check
 
-on:
-  push:
-    paths:
-      - 'Dockerfile'
-      - 'entrypoint.sh'
-      - '.github/workflows/**'
+on: push
 
 jobs:
   docker:
@@ -22,6 +17,9 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
+          failure-threshold: warning  # Fail on warnings too
+          format: tty                # Better formatting
+          no-fail: false            # Make sure it fails on issues
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -33,12 +31,39 @@ jobs:
           push: false
           load: true
           tags: cpp-compiler:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Test container
+      - name: Test container basic functionality
         run: |
-          # Basic test - try to compile a simple program
+          # Test 1: Simple delay
+          echo "Testing simple delay compilation..."
           docker run --rm \
             -e USER_CODE='delay(1000);' \
             -e ENVIRONMENT=local \
             -e PIP_ID=test123 \
             cpp-compiler:test
+          
+          # Test 2: LED blink
+          echo "Testing LED blink compilation..."
+          docker run --rm \
+            -e USER_CODE='digitalWrite(LED_BUILTIN, HIGH); delay(1000); digitalWrite(LED_BUILTIN, LOW); delay(1000);' \
+            -e ENVIRONMENT=local \
+            -e PIP_ID=test123 \
+            cpp-compiler:test
+
+      - name: Test different environments
+        run: |
+          for env in "local" "staging" "production"; do
+            echo "Testing $env environment..."
+            docker run --rm \
+              -e USER_CODE='delay(1000);' \
+              -e ENVIRONMENT=$env \
+              -e PIP_ID=test123 \
+              cpp-compiler:test
+          done
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker system prune -f
