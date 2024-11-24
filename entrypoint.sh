@@ -20,74 +20,20 @@ INCLUDE_DIR="$SRC_DIR/include"
 BUILD_DIR="$WORKSPACE_DIR/.pio/build/${pio_env}"
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
 HEADER_FILE="$INCLUDE_DIR/user_code.h"
+FIRMWARE_SOURCE="${FIRMWARE_SOURCE:-}"
 
-# Function to create platformio.ini
-create_platformio_config() {
-    log "Creating platformio.ini..."
-    cat > "$WORKSPACE_DIR/platformio.ini" << EOL
-[env:${pio_env}]
-platform = espressif32
-board = esp32-s3-devkitc-1
-framework = arduino
-
-upload_speed = 921600
-monitor_speed = 115200
-
-lib_deps = 
-    gilmaimon/ArduinoWebsockets @ ^0.5.4
-    adafruit/Adafruit VL53L1X @ ^3.1.0
-    adafruit/Adafruit BusIO @ ^1.14.1
-    SPI
-    Wire
-    WiFi
-    WiFiClientSecure
-    HttpClient
-    bblanchon/ArduinoJson@^7.2.1
-    adafruit/Adafruit NeoPixel
-
-board_build.flash_mode = qio
-board_build.f_cpu = 240000000L
-
-board_build.flash_size = 8MB
-board_build.psram = enabled
-board_build.psram_type = opi
-board_build.arduino.memory_type = qio_opi
-
-board_build.spiram_mode = qio
-board_build.spiram_speed = 80
-
-build_flags = 
-    # PSRAM
-    -DBOARD_HAS_PSRAM
-    -mfix-esp32-psram-cache-issue
-    -DCONFIG_SPIRAM=y
-    -DCONFIG_SPIRAM_SIZE=8388608
-    -DCONFIG_SPIRAM_TYPE_AUTO
-    -DCONFIG_ESP32_SPIRAM_SUPPORT
-    -DCONFIG_SPIRAM_SPEED_80M=y
-    
-    # USB
-    -DARDUINO_USB_MODE=1
-    -DARDUINO_USB_CDC_ON_BOOT=1
-    -DCONFIG_ARDUINO_USB_CDC_ON_BOOT=y
-    -DCONFIG_TINYUSB_CDC=y
-    
-    # Core settings
-    -DARDUINO_RUNNING_CORE=1
-    -DDEFAULT_PIP_ID=\\"${PIP_ID}\\"
-EOL
-}
 
 # Function to fetch and extract firmware from S3
 fetch_firmware() {
     local env="$pio_env"
-    local s3_bucket="staging-pip-firmware"
+    local s3_bucket=""
+    local s3_key="firmware/latest/firmware.zip"
 
     if [ "$env" = "production" ]; then
-        s3_bucket="production-pip-firmware"
+        s3_bucket="${PRODUCTION_FIRMWARE_BUCKET:-production-pip-firmware}"
+    else
+        s3_bucket="${STAGING_FIRMWARE_BUCKET:-staging-pip-firmware}"
     fi
-
-    local s3_key="firmware.zip"
 
     if [ "$env" != "local" ]; then
         log "Fetching firmware from S3 bucket: ${s3_bucket} for environment: $env"
@@ -99,6 +45,9 @@ fetch_firmware() {
         rm -rf "$WORKSPACE_DIR"/*
         unzip -q /tmp/firmware.zip -d "$WORKSPACE_DIR"
         rm /tmp/firmware.zip
+    else
+        log "Using local firmware directory"
+        # No need to do anything as the local directory is mounted
     fi
 }
 
@@ -112,16 +61,19 @@ init_workspace() {
 log "Starting compilation process..."
 log "Using environment: ${pio_env}"
 
-# Initialize workspace
-init_workspace
-
-# Create platformio config for local environment
-if [ "$pio_env" = "local" ]; then
-    create_platformio_config
+if [ "$pio_env" != "local" ]; then
+    init_workspace
+    fetch_firmware
+else
+    # Handle local environment
+    if [ -n "$FIRMWARE_SOURCE" ] && [ -d "$FIRMWARE_SOURCE" ]; then
+        log "Copying local firmware files..."
+        # Copy files from read-only firmware directory to workspace
+        cp -r "$FIRMWARE_SOURCE"/* "$WORKSPACE_DIR"/ || error "Failed to copy firmware files"
+    else
+        error "FIRMWARE_SOURCE not set or directory not found"
+    fi
 fi
-
-# Fetch firmware if needed (for non-local environments)
-fetch_firmware
 
 # Check if the USER_CODE environment variable is set
 if [ -z "$USER_CODE" ]; then

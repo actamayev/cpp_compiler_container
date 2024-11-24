@@ -7,6 +7,7 @@ error() {
 }
 
 IMAGE_NAME="cpp-compiler"  # Consistent image name
+FIRMWARE_DIR="/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware"
 
 # Check if environment argument is provided
 if [ "$1" != "local" ] && [ "$1" != "staging" ] && [ "$1" != "production" ]; then
@@ -26,13 +27,19 @@ case "$1" in
         docker rm cpp-compiler-instance 2>/dev/null
         
         # Remove old image
-        docker rmi ${IMAGE_NAME}:test 2>/dev/null
-        
-        # Create a named volume for workspace if it doesn't exist
-        docker volume create cpp-compiler-workspace || true
+        docker rmi cpp-compiler:test 2>/dev/null
 
-        # Rebuild local
-        docker build -t ${IMAGE_NAME}:test . || error "Local build failed"
+        # Create a named volume for the workspace if it doesn't exist
+        docker volume create cpp-workspace-vol
+
+        # Rebuild local - mount your local firmware directory as read-only and use a volume for workspace
+        docker build -t cpp-compiler:test . || error "Local build failed"
+        docker run -d \
+            --name cpp-compiler-instance \
+            -v "${FIRMWARE_DIR}:/firmware:ro" \
+            -v cpp-workspace-vol:/workspace \
+            -e FIRMWARE_SOURCE=/firmware \
+            cpp-compiler:test
         echo "Local environment updated successfully!"
         ;;
         
