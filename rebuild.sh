@@ -6,8 +6,18 @@ error() {
     exit 1
 }
 
-IMAGE_NAME="cpp-compiler"  # Consistent image name
+IMAGE_NAME="firmware-compiler"  # Consistent image name
 FIRMWARE_DIR="/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware"
+ECR_URL="481665120319.dkr.ecr.us-east-1.amazonaws.com"
+REGION="us-east-1"
+
+# Function to ensure ECR repository exists
+ensure_ecr_repo() {
+    aws ecr describe-repositories --repository-names ${IMAGE_NAME} 2>/dev/null || {
+        echo "Creating ECR repository ${IMAGE_NAME}..."
+        aws ecr create-repository --repository-name ${IMAGE_NAME} || error "Failed to create ECR repository"
+    }
+}
 
 # Check if environment argument is provided
 if [ "$1" != "local" ] && [ "$1" != "staging" ] && [ "$1" != "production" ]; then
@@ -23,38 +33,41 @@ case "$1" in
         echo "Rebuilding local environment..."
         
         # Stop and remove local container
-        docker stop cpp-compiler-instance 2>/dev/null
-        docker rm cpp-compiler-instance 2>/dev/null
-        
+        docker stop firmware-compiler-instance 2>/dev/null
+        docker rm firmware-compiler-instance 2>/dev/null
+
         # Remove old image
-        docker rmi cpp-compiler:test 2>/dev/null
+        docker rmi firmware-compiler:test 2>/dev/null
 
         # Create a named volume for the workspace if it doesn't exist
         docker volume create cpp-workspace-vol
 
         # Rebuild local - mount your local firmware directory as read-only and use a volume for workspace
-        docker build -t cpp-compiler:test . || error "Local build failed"
+        docker build --platform linux/arm64 -t firmware-compiler:test . || error "Local build failed"
         docker run -d \
-            --name cpp-compiler-instance \
+            --name firmware-compiler-instance \
             -v "${FIRMWARE_DIR}:/firmware:ro" \
             -v cpp-workspace-vol:/workspace \
             -e FIRMWARE_SOURCE=/firmware \
-            cpp-compiler:test
+            firmware-compiler:test
         echo "Local environment updated successfully!"
         ;;
-        
+
     "staging"|"production")
         echo "Rebuilding ${1} environment..."
-        
+
+        # Ensure ECR repository exists
+        ensure_ecr_repo
+
         # Login to ECR
-        aws ecr get-login-password --region us-east-1 | \
-            docker login --username AWS --password-stdin 481665120319.dkr.ecr.us-east-1.amazonaws.com || \
+        aws ecr get-login-password --region ${REGION} | \
+            docker login --username AWS --password-stdin ${ECR_URL} || \
             error "ECR login failed"
-            
+
         # Build and push
-        docker build -t ${IMAGE_NAME}:${1} . || error "${1} build failed"
-        docker tag ${IMAGE_NAME}:${1} 481665120319.dkr.ecr.us-east-1.amazonaws.com/${IMAGE_NAME}:${1} || error "${1} tag failed"
-        docker push 481665120319.dkr.ecr.us-east-1.amazonaws.com/${IMAGE_NAME}:${1} || error "${1} push failed"
+        docker build --platform linux/amd64 -t ${IMAGE_NAME}:${1} . || error "${1} build failed"
+        docker tag ${IMAGE_NAME}:${1} ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} tag failed"
+        docker push ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} push failed"
         echo "${1} environment updated successfully!"
         ;;
 esac
