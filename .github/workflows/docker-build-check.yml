@@ -37,19 +37,19 @@ jobs:
           context: .
           push: false
           load: true
-          tags: cpp-compiler:test
+          tags: firmware-compiler:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Test staging and production environments
         run: |
           # Create persistent volume for tests
-          docker volume create cpp-compiler-workspace
+          docker volume create firmware-compiler-workspace
 
           for env in "staging" "production"; do
             echo "Testing $env environment..."
             docker run --rm \
-              -v cpp-compiler-workspace:/workspace \
+              -v firmware-compiler-workspace:/workspace \
               -e USER_CODE='delay(1000);' \
               -e ENVIRONMENT=$env \
               -e PIP_ID=test123 \
@@ -58,7 +58,7 @@ jobs:
               -e AWS_DEFAULT_REGION=us-east-1 \
               -e PRODUCTION_FIRMWARE_BUCKET=${{ secrets.PRODUCTION_FIRMWARE_BUCKET }} \
               -e STAGING_FIRMWARE_BUCKET=${{ secrets.STAGING_FIRMWARE_BUCKET }} \
-              cpp-compiler:test
+              firmware-compiler:test
           done
 
       - name: Cleanup
