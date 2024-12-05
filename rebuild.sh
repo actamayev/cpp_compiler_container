@@ -6,7 +6,7 @@ error() {
     exit 1
 }
 
-IMAGE_NAME="firmware-compiler"  # Consistent image name
+IMAGE_NAME="firmware-compiler"
 FIRMWARE_DIR="/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware"
 ECR_URL="481665120319.dkr.ecr.us-east-1.amazonaws.com"
 REGION="us-east-1"
@@ -36,38 +36,61 @@ case "$1" in
         docker stop firmware-compiler-instance 2>/dev/null
         docker rm firmware-compiler-instance 2>/dev/null
 
-        # Remove old image
+        # Remove old images
         docker rmi firmware-compiler:test 2>/dev/null
+        docker rmi firmware-compiler:test-arm64 2>/dev/null
 
         # Create a named volume for the workspace if it doesn't exist
         docker volume create cpp-workspace-vol
 
-        # Rebuild local - mount your local firmware directory as read-only and use a volume for workspace
-        docker build --platform linux/arm64 -t firmware-compiler:test . || error "Local build failed"
+        # Build for ARM64 (M1/M2 Mac)
+        echo "Building ARM64 image for local development..."
+        docker buildx build \
+            --platform linux/arm64 \
+            --load \
+            -t firmware-compiler:test-arm64 \
+            . || error "Local build failed"
+
+        # Run the container
         docker run -d \
             --name firmware-compiler-instance \
+            --platform linux/arm64 \
             -v "${FIRMWARE_DIR}:/firmware:ro" \
             -v cpp-workspace-vol:/workspace \
             -e FIRMWARE_SOURCE=/firmware \
-            firmware-compiler:test
+            firmware-compiler:test-arm64
         echo "Local environment updated successfully!"
         ;;
 
     "staging"|"production")
+        # For staging/production case:
         echo "Rebuilding ${1} environment..."
-
-        # Ensure ECR repository exists
-        ensure_ecr_repo
 
         # Login to ECR
         aws ecr get-login-password --region ${REGION} | \
             docker login --username AWS --password-stdin ${ECR_URL} || \
             error "ECR login failed"
 
-        # Build and push
-        docker build --platform linux/amd64 -t ${IMAGE_NAME}:${1} . || error "${1} build failed"
-        docker tag ${IMAGE_NAME}:${1} ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} tag failed"
-        docker push ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} push failed"
+        # Create buildx builder with multi-platform support
+        docker buildx create --use --name multi-platform-builder || true
+
+        # Build and push multi-platform image
+        echo "Building multi-platform image..."
+        docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --push \
+            -t ${ECR_URL}/${IMAGE_NAME}:${1} \
+            . || error "${1} build failed"
+
+        # Tag as latest if it's production
+        if [ "$1" = "production" ]; then
+            docker buildx build \
+                --platform linux/amd64,linux/arm64 \
+                --push \
+                -t ${ECR_URL}/${IMAGE_NAME}:latest \
+                . || error "Failed to push latest tag"
+        fi
+
         echo "${1} environment updated successfully!"
         ;;
 esac
