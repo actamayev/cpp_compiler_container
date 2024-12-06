@@ -60,18 +60,31 @@ init_workspace() {
 log "Starting compilation process..."
 log "Using environment: ${pio_env}"
 
+log "FIRMWARE_SOURCE: ${FIRMWARE_SOURCE}"
+
+log "WORKSPACE_BASE_DIR: ${WORKSPACE_BASE_DIR}"
+
 # Always start with a clean workspace
 init_workspace
 
 if [ "$pio_env" = "local" ]; then
     if [ -n "$FIRMWARE_SOURCE" ] && [ -d "$FIRMWARE_SOURCE" ]; then
         log "Setting up local workspace..."
-        # Copy everything except user_code.cpp
+        # Copy core build files
         cp "$FIRMWARE_SOURCE/platformio.ini" "$WORKSPACE_BASE_DIR/"
-        mkdir -p "$SRC_DIR/include"
-        cp -r "$FIRMWARE_SOURCE/src/include" "$SRC_DIR/"
+        cp "$FIRMWARE_SOURCE/partitions_custom.csv" "$WORKSPACE_BASE_DIR/"
+
+        # Copy source files
+        mkdir -p "$SRC_DIR"
+        cp -r "$FIRMWARE_SOURCE/src/"* "$SRC_DIR/"
+        
+        # Debug output
+        log "Workspace contents after copy:"
+        ls -la "$WORKSPACE_BASE_DIR"
+        log "Source directory contents:"
+        ls -la "$SRC_DIR"
     else
-        error "FIRMWARE_SOURCE not set or directory not found"
+        error "FIRMWARE_SOURCE ($FIRMWARE_SOURCE) not set or directory not found"
     fi
 else
     fetch_firmware

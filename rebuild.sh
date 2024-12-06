@@ -37,19 +37,19 @@ case "$1" in
         docker rm firmware-compiler-instance 2>/dev/null
 
         # Remove old image
-        docker rmi firmware-compiler:test 2>/dev/null
+        docker rmi firmware-compiler:latest 2>/dev/null
 
         # Create a named volume for the workspace if it doesn't exist
         docker volume create cpp-workspace-vol
 
         # Rebuild local - mount your local firmware directory as read-only and use a volume for workspace
-        docker build --platform linux/arm64 -t firmware-compiler:test . || error "Local build failed"
+        docker build --platform linux/arm64 -t firmware-compiler:latest . || error "Local build failed"
         docker run -d \
             --name firmware-compiler-instance \
             -v "${FIRMWARE_DIR}:/firmware:ro" \
             -v cpp-workspace-vol:/workspace \
             -e FIRMWARE_SOURCE=/firmware \
-            firmware-compiler:test
+            firmware-compiler:latest
         echo "Local environment updated successfully!"
         ;;
 
