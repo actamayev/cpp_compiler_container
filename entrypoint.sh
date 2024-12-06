@@ -143,4 +143,19 @@ fi
 log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")"
 
 # Stream binary directly to stdout
-cat "$BUILD_DIR/firmware.bin"
+{
+    # Redirect all logs to stderr instead of stdout
+    log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
+    
+    # Verify binary header
+    first_byte=$(od -An -t x1 -N 1 "$BUILD_DIR/firmware.bin" | tr -d ' ')
+    log "First byte of binary: 0x$first_byte" >&2
+
+    if [ "$first_byte" != "e9" ]; then
+        error "Invalid binary header (expected 0xE9, got 0x$first_byte)"
+    fi
+
+    # Output binary file directly to stdout without any text output
+    exec 1>&3  # Redirect stdout to FD 3
+    cat "$BUILD_DIR/firmware.bin"
+} 3>&1  # Create FD 3 and point it to original stdout
