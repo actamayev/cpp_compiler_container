@@ -139,23 +139,16 @@ if [ "$first_byte" != "e9" ]; then
     error "Invalid binary header (expected 0xE9, got 0x$first_byte)"
 fi
 
-# Output binary info
-log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")"
+# Output binary info to stderr
+log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
 
-# Stream binary directly to stdout
-{
-    # Redirect all logs to stderr instead of stdout
-    log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
-    
-    # Verify binary header
-    first_byte=$(od -An -t x1 -N 1 "$BUILD_DIR/firmware.bin" | tr -d ' ')
-    log "First byte of binary: 0x$first_byte" >&2
+# All logs and verification to stderr
+first_byte=$(od -An -t x1 -N 1 "$BUILD_DIR/firmware.bin" | tr -d ' ')
+log "First byte of binary: 0x$first_byte" >&2
 
-    if [ "$first_byte" != "e9" ]; then
-        error "Invalid binary header (expected 0xE9, got 0x$first_byte)"
-    fi
+if [ "$first_byte" != "e9" ]; then
+    error "Invalid binary header (expected 0xE9, got 0x$first_byte)" >&2
+fi
 
-    # Output binary file directly to stdout without any text output
-    exec 1>&3  # Redirect stdout to FD 3
-    cat "$BUILD_DIR/firmware.bin"
-} 3>&1  # Create FD 3 and point it to original stdout
+# ONLY the binary goes to stdout, everything else went to stderr
+cat "$BUILD_DIR/firmware.bin"
