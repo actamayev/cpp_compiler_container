@@ -46,7 +46,7 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create volume mount points
-VOLUME ["/root/.platformio", "/workspace"]
+# VOLUME ["/root/.platformio", "/workspace"]
 
 # Default command
 CMD ["/entrypoint.sh"]
