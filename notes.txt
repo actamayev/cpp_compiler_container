@@ -6,7 +6,7 @@ After confirming everything works locally, run `./rebuild.sh staging`
 
 After confirming everything works in staging, run `./rebuild.sh production`
 
-To delete all containers/images/volumes/cache: `./cleanup.sh`
+To delete all containers/images/volumes/cache: `./cleanup.sh` or `./cleanup.sh local` or `./cleanup.sh staging` or `./cleanup.sh production`
 
 To verify everything is clean:
 	# Check containers

@@ -142,13 +142,16 @@ fi
 # Output binary info to stderr
 log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
 
-# All logs and verification to stderr
-first_byte=$(od -An -t x1 -N 1 "$BUILD_DIR/firmware.bin" | tr -d ' ')
-log "First byte of binary: 0x$first_byte" >&2
-
-if [ "$first_byte" != "e9" ]; then
-    error "Invalid binary header (expected 0xE9, got 0x$first_byte)" >&2
+# If S3 bucket info is provided, upload the binary
+if [ -n "${COMPILED_BINARY_OUTPUT_BUCKET}" ] && [ -n "${OUTPUT_KEY}" ]; then
+    log "Uploading binary to S3: s3://${COMPILED_BINARY_OUTPUT_BUCKET}/${OUTPUT_KEY}" >&2
+    if ! aws s3 cp "$BUILD_DIR/firmware.bin" "s3://${COMPILED_BINARY_OUTPUT_BUCKET}/${OUTPUT_KEY}"; then
+        error "Failed to upload binary to S3"
+    fi
+    log "Successfully uploaded binary to S3" >&2
 fi
 
-# ONLY the binary goes to stdout, everything else went to stderr
-cat "$BUILD_DIR/firmware.bin"
+# Only output binary to stdout for local environment
+if [ "$pio_env" = "local" ]; then
+    cat "$BUILD_DIR/firmware.bin"
+fi
