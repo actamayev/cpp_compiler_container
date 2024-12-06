@@ -6,7 +6,7 @@ error() {
     exit 1
 }
 
-IMAGE_NAME="firmware-compiler"  # Consistent image name
+IMAGE_NAME="firmware-compiler"
 FIRMWARE_DIR="/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware"
 ECR_URL="481665120319.dkr.ecr.us-east-1.amazonaws.com"
 REGION="us-east-1"
@@ -36,16 +36,22 @@ case "$1" in
         docker stop firmware-compiler-instance 2>/dev/null
         docker rm firmware-compiler-instance 2>/dev/null
 
-        # Remove old image
+        # Remove old images
         docker rmi firmware-compiler:latest 2>/dev/null
 
         # Create a named volume for the workspace if it doesn't exist
         docker volume create cpp-workspace-vol
 
         # Rebuild local - mount your local firmware directory as read-only and use a volume for workspace
-        docker build --platform linux/arm64 -t firmware-compiler:latest . || error "Local build failed"
+        docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            -t firmware-compiler:latest \
+            . || error "Local build failed"
+
         docker run -d \
             --name firmware-compiler-instance \
+            --platform linux/amd64 \
             -v "${FIRMWARE_DIR}:/firmware:ro" \
             -v cpp-workspace-vol:/workspace \
             -e FIRMWARE_SOURCE=/firmware \
@@ -65,7 +71,12 @@ case "$1" in
             error "ECR login failed"
 
         # Build and push
-        docker build --platform linux/amd64 -t ${IMAGE_NAME}:${1} . || error "${1} build failed"
+        docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            -t ${ECR_URL}/${IMAGE_NAME}:${1} \
+            . || error "${1} build failed"
+
         docker tag ${IMAGE_NAME}:${1} ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} tag failed"
         docker push ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} push failed"
         echo "${1} environment updated successfully!"
