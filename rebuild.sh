@@ -77,8 +77,17 @@ case "$1" in
             -t ${ECR_URL}/${IMAGE_NAME}:${1} \
             . || error "${1} build failed"
 
-        docker tag ${IMAGE_NAME}:${1} ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} tag failed"
-        docker push ${ECR_URL}/${IMAGE_NAME}:${1} || error "${1} push failed"
+        if [ "$1" = "production" ]; then
+            docker buildx build \
+                --platform linux/amd64 \
+                --push \
+                -t ${ECR_URL}/${IMAGE_NAME}:latest \
+                . || error "Failed to push latest tag"
+        fi
+
+        echo "Verifying image manifest..."
+        docker buildx imagetools inspect ${ECR_URL}/${IMAGE_NAME}:${1} || error "Manifest verification failed"
+
         echo "${1} environment updated successfully!"
         ;;
 esac
