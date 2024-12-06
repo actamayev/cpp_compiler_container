@@ -129,5 +129,15 @@ fi
 # Output binary info
 log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")"
 
-# Stream binary directly to stdout
+if [ -n "${COMPILED_BINARY_OUTPUT_BUCKET}" ] && [ -n "${OUTPUT_KEY}" ]; then
+    log "Uploading binary to S3: s3://${COMPILED_BINARY_OUTPUT_BUCKET}/${OUTPUT_KEY}"
+    if ! aws s3 cp "$BUILD_DIR/firmware.bin" "s3://${COMPILED_BINARY_OUTPUT_BUCKET}/${OUTPUT_KEY}"; then
+        error "Failed to upload binary to S3"
+    fi
+    log "Successfully uploaded binary to S3"
+else
+    log "S3 bucket or output key not provided, skipping S3 upload"
+fi
+
+# Stream binary to stdout as well (for local builds)
 cat "$BUILD_DIR/firmware.bin"
