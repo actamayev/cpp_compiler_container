@@ -1,4 +1,4 @@
-Whenever changing Dockerfile or entrypoint.sh, run `./rebuild.sh local`
+Whenever changing Dockerfile or entrypoint.sh, (or the actual firmware! [may need to run cleanup and then rebuild]), run `./rebuild.sh local`
 	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
 	It downloads the Espressif IDF, Python (for PlatformIO)
 
