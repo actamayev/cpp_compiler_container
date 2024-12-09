@@ -14,6 +14,7 @@ error() {
 pio_env="${ENVIRONMENT:-local}"
 FIRMWARE_SOURCE="${FIRMWARE_SOURCE:-}"
 WORKSPACE_DIR="/workspace"
+WARMUP="${WARMUP:-false}"  # Default to false
 
 if [ "$pio_env" = "local" ] && [ -n "${WORKSPACE_DIR:-}" ]; then
     WORKSPACE_BASE_DIR="$WORKSPACE_DIR"
@@ -141,6 +142,11 @@ fi
 
 # Output binary info to stderr
 log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
+
+if [ "$WARMUP" = "true" ]; then
+    log "Warmup complete - dependencies cached in /root/.platformio"
+    exit 0
+fi
 
 # If S3 bucket info is provided, upload the binary
 if [ -n "${COMPILED_BINARY_OUTPUT_BUCKET}" ] && [ -n "${OUTPUT_KEY}" ]; then

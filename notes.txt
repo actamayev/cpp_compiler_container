@@ -1,4 +1,4 @@
-Whenever changing Dockerfile/entrypoint.sh, run `./rebuild.sh local`
+Whenever changing Dockerfile or entrypoint.sh, run `./rebuild.sh local`
 	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
 	It downloads the Espressif IDF, Python (for PlatformIO)
 
@@ -20,3 +20,9 @@ To verify everything is clean:
 
 	# Check overall docker disk usage
 	docker system df
+
+To get into the staging container:
+	- `ssh -i /Users/arieltamayev/Documents/bdr-staging-ec2-keypair.pem ec2-user@ec2-184-73-137-225.compute-1.amazonaws.com`
+
+To get into the prod container:
+	- DNE

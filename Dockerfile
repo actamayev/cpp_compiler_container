@@ -45,8 +45,5 @@ RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframe
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Create volume mount points
-# VOLUME ["/root/.platformio", "/workspace"]
-
 # Default command
 CMD ["/entrypoint.sh"]
