@@ -35,10 +35,11 @@ RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframe
     platformio platform install espressif32 && \
     platformio lib install \
         "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
-        "adafruit/Adafruit VL53L1X @ ^3.1.0" \
         "adafruit/Adafruit BusIO @ ^1.14.1" \
         "bblanchon/ArduinoJson@^7.2.1" \
-        "adafruit/Adafruit NeoPixel" && \
+        "adafruit/Adafruit NeoPixel" \
+	    "sparkfun/SparkFun VL53L5CX Arduino Library@^1.0.3" \
+	    "adafruit/Adafruit BNO08x@^1.2.5" && \
     rm platformio.ini  # Remove the temporary platformio.ini
 
 # Copy and prepare entrypoint
