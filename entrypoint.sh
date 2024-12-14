@@ -10,6 +10,10 @@ error() {
     exit 1
 }
 
+log "Checking PlatformIO cache:"
+ls -la /root/.platformio
+df -h /root/.platformio
+
 # Get environment, default to local if not set
 pio_env="${ENVIRONMENT:-local}"
 FIRMWARE_SOURCE="${FIRMWARE_SOURCE:-}"
@@ -120,10 +124,14 @@ if [ ! -f "$WORKSPACE_BASE_DIR/platformio.ini" ]; then
     error "platformio.ini not found before build"
 fi
 
+export PLATFORMIO_CACHE_DIR="/root/.platformio"
+export PLATFORMIO_GLOBAL_DIR="/root/.platformio"
+
 log "Starting PlatformIO build..."
 log "Using PlatformIO environment: ${pio_env}"
 
-if ! platformio run --environment "$pio_env" -j 2 --silent; then
+if ! PLATFORMIO_BUILD_CACHE_DIR="/root/.platformio/cache" \
+    platformio run --environment "$pio_env" --silent; then
     error "Build failed"
 fi
 
