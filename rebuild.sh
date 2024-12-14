@@ -13,10 +13,13 @@ REGION="us-east-1"
 
 # Function to ensure ECR repository exists
 ensure_ecr_repo() {
-    aws ecr describe-repositories --repository-names ${IMAGE_NAME} 2>/dev/null || {
+    # Check if repo exists, suppress error output
+    if ! aws ecr describe-repositories --repository-names ${IMAGE_NAME} &>/dev/null; then
         echo "Creating ECR repository ${IMAGE_NAME}..."
         aws ecr create-repository --repository-name ${IMAGE_NAME} || error "Failed to create ECR repository"
-    }
+    else
+        echo "Repository ${IMAGE_NAME} already exists, continuing..."
+    fi
 }
 
 # Check if environment argument is provided
