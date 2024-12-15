@@ -1,7 +1,33 @@
-# Use Python 3.13 slim-bullseye for better performance
+# Use Python 3.13 slim-bullseye as base
+FROM python:3.13-slim-bullseye AS builder
+
+# Install Node.js 20.x first (since this is needed for building)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up for building TypeScript
+WORKDIR /build
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY src/ ./src/
+
+# Install dependencies and build
+RUN npm install && \
+    npm run build
+
+# Start fresh for the final image
 FROM python:3.13-slim-bullseye
 
-# Install required packages in a single layer
+# Install Node.js and other runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git \
@@ -12,26 +38,39 @@ RUN apt-get update && \
         coreutils \
         python3-pip \
         unzip \
-    && rm -rf /var/lib/apt/lists/*
+        ca-certificates \
+        gnupg && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
     PLATFORMIO_UPLOAD_SPEED="921600" \
     WORKSPACE_DIR="/workspace" \
-    AWS_DEFAULT_REGION="us-east-1"
+    AWS_DEFAULT_REGION="us-east-1" \
+    SERVER_PORT=3001
 
-# Install dependencies
-RUN pip3 install --no-cache-dir \
-        awscli==1.36.9 \
-        platformio==6.1.16
+# Install PlatformIO
+RUN pip3 install --no-cache-dir platformio==6.1.16
 
 # Create workspace directory
 RUN mkdir -p /workspace
 
-WORKDIR /workspace
+WORKDIR /app
+
+# Copy only production dependencies
+COPY package*.json ./
+RUN npm install --production
+
+# Copy built files from builder stage
+COPY --from=builder /build/dist ./dist
 
 # Create basic platformio.ini for initialization
-RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframework = arduino" > platformio.ini && \
+RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframework = arduino" > /workspace/platformio.ini && \
     platformio platform install espressif32 && \
     platformio lib install \
         "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
@@ -40,11 +79,10 @@ RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframe
         "adafruit/Adafruit NeoPixel" \
 	    "sparkfun/SparkFun VL53L5CX Arduino Library@^1.0.3" \
 	    "adafruit/Adafruit BNO08x@^1.2.5" && \
-    rm platformio.ini  # Remove the temporary platformio.ini
+    rm /workspace/platformio.ini
 
-# Copy and prepare entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Expose API port
+EXPOSE 3001
 
-# Default command
-CMD ["/entrypoint.sh"]
+# Start the server
+CMD ["node", "dist/server.js"]

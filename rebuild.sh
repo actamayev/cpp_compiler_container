@@ -10,16 +10,32 @@ IMAGE_NAME="firmware-compiler"
 FIRMWARE_DIR="/Users/arieltamayev/Documents/PlatformIO/pip-bot-firmware"
 ECR_URL="481665120319.dkr.ecr.us-east-1.amazonaws.com"
 REGION="us-east-1"
+SERVER_PORT=3001  # Define port as a variable for easier management
 
 # Function to ensure ECR repository exists
 ensure_ecr_repo() {
-    # Check if repo exists, suppress error output
     if ! aws ecr describe-repositories --repository-names ${IMAGE_NAME} &>/dev/null; then
         echo "Creating ECR repository ${IMAGE_NAME}..."
         aws ecr create-repository --repository-name ${IMAGE_NAME} || error "Failed to create ECR repository"
     else
         echo "Repository ${IMAGE_NAME} already exists, continuing..."
     fi
+}
+
+# Function to wait for server health check
+wait_for_server() {
+    local retries=0
+    local max_retries=30
+    echo "Waiting for server to be ready..."
+    while [ $retries -lt $max_retries ]; do
+        if curl -s http://localhost:${SERVER_PORT}/health > /dev/null; then
+            echo "Server is ready!"
+            return 0
+        fi
+        retries=$((retries + 1))
+        sleep 1
+    done
+    error "Server failed to respond after 30 seconds"
 }
 
 # Check if environment argument is provided
@@ -42,24 +58,44 @@ case "$1" in
         # Remove old images
         docker rmi firmware-compiler:latest 2>/dev/null
 
-        # Create a named volume for the workspace if it doesn't exist
+        # Create named volumes if they don't exist
         docker volume create cpp-workspace-vol
+        docker volume create pio-cache
 
-        # Rebuild local - mount your local firmware directory as read-only and use a volume for workspace
+        # Build image
         docker buildx build \
             --platform linux/amd64 \
             --load \
             -t firmware-compiler:latest \
+            --build-arg ENVIRONMENT=local \
+            --build-arg SERVER_PORT=${SERVER_PORT} \
             . || error "Local build failed"
 
+        # Run with all necessary mounts and environment variables
         docker run -d \
             --name firmware-compiler-instance \
             --platform linux/amd64 \
+            -p ${SERVER_PORT}:${SERVER_PORT} \
             -v "${FIRMWARE_DIR}:/firmware:ro" \
             -v cpp-workspace-vol:/workspace \
+            -v pio-cache:/root/.platformio \
             -e FIRMWARE_SOURCE=/firmware \
+            -e ENVIRONMENT=local \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_REGION="$REGION" \
+            -e COMPILED_BINARY_OUTPUT_BUCKET=staging-compiled-binary-output \
+            -e SERVER_PORT=${SERVER_PORT} \
             firmware-compiler:latest
+
+        # Wait for server to be ready
+        wait_for_server
+
+        # Show container logs
+        docker logs firmware-compiler-instance
+
         echo "Local environment updated successfully!"
+        echo "Server is running at http://localhost:${SERVER_PORT}"
         ;;
 
     "staging"|"production")
@@ -73,10 +109,12 @@ case "$1" in
             docker login --username AWS --password-stdin ${ECR_URL} || \
             error "ECR login failed"
 
-        # Build and push
+        # Build and push with environment-specific build args
         docker buildx build \
             --platform linux/amd64 \
             --push \
+            --build-arg ENVIRONMENT="$1" \
+            --build-arg SERVER_PORT=${SERVER_PORT} \
             -t ${ECR_URL}/${IMAGE_NAME}:${1} \
             . || error "${1} build failed"
 
@@ -84,6 +122,8 @@ case "$1" in
             docker buildx build \
                 --platform linux/amd64 \
                 --push \
+                --build-arg ENVIRONMENT=production \
+                --build-arg SERVER_PORT=${SERVER_PORT} \
                 -t ${ECR_URL}/${IMAGE_NAME}:latest \
                 . || error "Failed to push latest tag"
         fi
@@ -92,5 +132,6 @@ case "$1" in
         docker buildx imagetools inspect ${ECR_URL}/${IMAGE_NAME}:${1} || error "Manifest verification failed"
 
         echo "${1} environment updated successfully!"
+        echo "You may need to update your ECS task definition to expose port ${SERVER_PORT}"
         ;;
 esac
