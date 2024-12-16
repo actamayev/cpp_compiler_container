@@ -39,12 +39,18 @@ RUN apt-get update && \
         python3-pip \
         unzip \
         ca-certificates \
-        gnupg && \
+        gnupg \
+        less && \
     mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
     apt-get install -y nodejs && \
+    # Install AWS CLI v2
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf aws awscliv2.zip && \
     rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
