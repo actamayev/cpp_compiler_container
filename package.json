@@ -1,0 +1,39 @@
+{
+  "name": "cpp_compiler_container",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run lint && npm run type-check",
+    "update-dependencies": "ncu -u && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bluedotrobots/cpp_compiler_container.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bluedotrobots/cpp_compiler_container/issues"
+  },
+  "homepage": "https://github.com/bluedotrobots/cpp_compiler_container#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "eslint": "^9.16.0",
+    "eslint-plugin-security": "^3.0.1",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
