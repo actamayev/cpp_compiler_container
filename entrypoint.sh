@@ -156,6 +156,7 @@ if [ "$WARMUP" = "true" ]; then
     exit 0
 fi
 
+# TODO: Remove this (not using S3. delete the bucket to see if it's being used anywhere (delete from secrets, enviroenmtn vars too))
 # If S3 bucket info is provided, upload the binary
 if [ -n "${COMPILED_BINARY_OUTPUT_BUCKET}" ] && [ -n "${OUTPUT_KEY}" ]; then
     log "Attempting S3 upload..."

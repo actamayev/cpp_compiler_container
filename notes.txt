@@ -1,4 +1,4 @@
-Whenever changing Dockerfile or entrypoint.sh, (or the actual firmware! [may need to run cleanup and then rebuild]), run `./rebuild.sh local`
+Whenever changing Dockerfile or entrypoint.sh or server.ts, (or the actual firmware! [may need to run cleanup and then rebuild]), run `./rebuild.sh local`
 	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
 	It downloads the Espressif IDF, Python (for PlatformIO)
 
@@ -26,3 +26,25 @@ To get into the staging container:
 
 To get into the prod container:
 	- DNE
+
+After changing server.ts, run rebuild, and also:
+To force a new deployment (bascally restarts):
+	aws ecs update-service \
+		--cluster bdr-staging-ecs-ec2-cluster \
+		--service staging-firmware-compiler-ec2 \
+		--force-new-deployment
+
+To create a new service (ie after running docker stop <container-id>):
+	aws ecs create-service \
+    --cluster bdr-staging-ecs-ec2-cluster \
+    --service-name staging-firmware-compiler-ec2 \
+    --task-definition staging-firmware-compiler-ec2:LATEST_REVISION \
+    --desired-count 1 \
+    --launch-type EC2 \
+    --scheduling-strategy REPLICA \
+    --deployment-configuration maximumPercent=200,minimumHealthyPercent=100
+
+To monitor creation of tasks:
+	aws ecs describe-services \
+    --cluster bdr-staging-ecs-ec2-cluster \
+    --services staging-firmware-compiler-ec2

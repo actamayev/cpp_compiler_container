@@ -57,9 +57,20 @@ ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
 # Install PlatformIO
 RUN pip3 install --no-cache-dir platformio==6.1.16
 
-# Create workspace directory
-RUN mkdir -p /workspace
+# Create workspace and initialize PlatformIO project
+RUN mkdir -p /workspace && \
+    cd /workspace && \
+    echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframework = arduino" > platformio.ini && \
+    platformio platform install espressif32 && \
+    platformio lib install \
+        "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
+        "adafruit/Adafruit VL53L1X @ ^3.1.0" \
+        "adafruit/Adafruit BusIO @ ^1.14.1" \
+        "bblanchon/ArduinoJson@^7.2.1" \
+        "adafruit/Adafruit NeoPixel" && \
+    rm platformio.ini
 
+# Set up application
 WORKDIR /app
 
 # Copy only production dependencies
@@ -68,18 +79,6 @@ RUN npm install --production
 
 # Copy built files from builder stage
 COPY --from=builder /build/dist ./dist
-
-# Create basic platformio.ini for initialization
-RUN echo "[env:local]\nplatform = espressif32\nboard = esp32-s3-devkitc-1\nframework = arduino" > /workspace/platformio.ini && \
-    platformio platform install espressif32 && \
-    platformio lib install \
-        "gilmaimon/ArduinoWebsockets @ ^0.5.4" \
-        "adafruit/Adafruit BusIO @ ^1.14.1" \
-        "bblanchon/ArduinoJson@^7.2.1" \
-        "adafruit/Adafruit NeoPixel" \
-	    "sparkfun/SparkFun VL53L5CX Arduino Library@^1.0.3" \
-	    "adafruit/Adafruit BNO08x@^1.2.5" && \
-    rm /workspace/platformio.ini
 
 # Expose API port
 EXPOSE 3001

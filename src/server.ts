@@ -1,4 +1,3 @@
-// src/server.ts
 import express, { Request, Response } from "express"
 import { promisify } from "util"
 import bodyParser from "body-parser"
@@ -9,11 +8,24 @@ const execAsync = promisify(exec)
 const app = express()
 const port = 3001
 
+app.use((req, res, next) => {
+	res.header("Access-Control-Allow-Origin", "*")
+	res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	res.header("Access-Control-Allow-Headers", "Content-Type")
+	next()
+})
+
 app.use(bodyParser.json())
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-	res.json({ status: "healthy" })
+	console.log("Health check requested from:", req.ip)
+	res.json({
+		status: "healthy",
+		timestamp: new Date().toISOString(),
+		serverPort: port,
+		environment: process.env.ENVIRONMENT || "unknown"
+	})
 })
 
 interface CompileRequest {
@@ -28,13 +40,21 @@ async function compile(req: Request, res: Response): Promise<void> {
 		const { userCode, pipUUID } = req.body as CompileRequest
 		console.log(`Starting compilation for PIP: ${pipUUID}`)
 
-		// Clean build directory but preserve PlatformIO cache
 		await execAsync("rm -rf /workspace/.pio/build/*")
 
-		// Write user code
+		// Format user code with includes and wrapper
+		const formattedCode = `#include "./include/config.h"
+			#include "./include/rgb_led.h"
+			#include "./include/user_code.h"
+
+			void user_code() {
+			${userCode}
+			}`
+
+		// Write formatted user code
 		await execAsync(`
             mkdir -p /workspace/src && \
-            echo '${userCode.replace(/'/g, "'\\''")}' > /workspace/src/user_code.cpp
+            echo '${formattedCode.replace(/'/g, "'\\''")}' > /workspace/src/user_code.cpp
         `)
 
 		// Run compilation
@@ -66,5 +86,6 @@ async function compile(req: Request, res: Response): Promise<void> {
 }
 
 app.listen(port, "0.0.0.0", () => {
-	console.log(`Compiler server listening on port ${port}`)
+	console.log(`Compiler server listening at http://0.0.0.0:${port}`)
+	console.log(`Environment: ${process.env.ENVIRONMENT || "unknown"}`)
 })
