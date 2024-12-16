@@ -1,4 +1,4 @@
-Whenever changing Dockerfile/entrypoint.sh, run `./rebuild.sh local`
+Whenever changing Dockerfile or entrypoint.sh or server.ts, (or the actual firmware! [may need to run cleanup and then rebuild]), run `./rebuild.sh local`
 	This takes a while but only needs to be done once (unless the Dockerfile or entrypoint.sh are changed).
 	It downloads the Espressif IDF, Python (for PlatformIO)
 
@@ -6,7 +6,7 @@ After confirming everything works locally, run `./rebuild.sh staging`
 
 After confirming everything works in staging, run `./rebuild.sh production`
 
-To delete all containers/images/volumes/cache: `./cleanup.sh`
+To delete all containers/images/volumes/cache: `./cleanup.sh` or `./cleanup.sh local` or `./cleanup.sh staging` or `./cleanup.sh production`
 
 To verify everything is clean:
 	# Check containers
@@ -20,3 +20,32 @@ To verify everything is clean:
 
 	# Check overall docker disk usage
 	docker system df
+
+To get into the staging container:
+	- `ssh -i /Users/arieltamayev/Documents/bdr-staging-ec2-keypair.pem ec2-user@ec2-184-73-137-225.compute-1.amazonaws.com`
+
+To get into the prod container:
+	- DNE
+
+Forcing a new deployment will not work. It will hang in 'in progress' mode because the CPU/memory necessary for the task defintion only allows for 1 Task to run at a time.
+
+To force a new deployment (bascally restarts):
+	aws ecs update-service \
+		--cluster bdr-staging-ecs-ec2-cluster \
+		--service staging-firmware-compiler-ec2 \
+		--force-new-deployment
+
+To create a new service (ie after running docker stop <container-id>):
+	aws ecs create-service \
+    --cluster bdr-staging-ecs-ec2-cluster \
+    --service-name staging-firmware-compiler-ec2 \
+    --task-definition staging-firmware-compiler-ec2:LATEST_REVISION \
+    --desired-count 1 \
+    --launch-type EC2 \
+    --scheduling-strategy REPLICA \
+    --deployment-configuration maximumPercent=200,minimumHealthyPercent=100
+
+To monitor creation of tasks:
+	aws ecs describe-services \
+    --cluster bdr-staging-ecs-ec2-cluster \
+    --services staging-firmware-compiler-ec2
