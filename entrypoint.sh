@@ -151,6 +151,7 @@ fi
 # Output binary info to stderr
 log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
 
+# TODO: Do we need this?:
 if [ "$WARMUP" = "true" ]; then
     log "Warmup complete - dependencies cached in /root/.platformio"
     exit 0

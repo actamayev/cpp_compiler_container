@@ -77,8 +77,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
-# Copy built files from builder stage
+# Copy built files from builder stage and entrypoint script
 COPY --from=builder /build/dist ./dist
+COPY entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
 
 # Expose API port
 EXPOSE 3001

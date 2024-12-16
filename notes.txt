@@ -27,7 +27,8 @@ To get into the staging container:
 To get into the prod container:
 	- DNE
 
-After changing server.ts, run rebuild, and also:
+Forcing a new deployment will not work. It will hang in 'in progress' mode because the CPU/memory necessary for the task defintion only allows for 1 Task to run at a time.
+
 To force a new deployment (bascally restarts):
 	aws ecs update-service \
 		--cluster bdr-staging-ecs-ec2-cluster \

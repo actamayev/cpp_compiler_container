@@ -101,6 +101,10 @@ case "$1" in
     "staging"|"production")
         echo "Rebuilding ${1} environment..."
 
+        # Set variables
+        CLUSTER_NAME="bdr-${1}-ecs-ec2-cluster"
+        SERVICE_NAME="${1}-firmware-compiler-ec2"
+        
         # Ensure ECR repository exists
         ensure_ecr_repo
 
@@ -131,7 +135,75 @@ case "$1" in
         echo "Verifying image manifest..."
         docker buildx imagetools inspect ${ECR_URL}/${IMAGE_NAME}:${1} || error "Manifest verification failed"
 
-        echo "${1} environment updated successfully!"
-        echo "You may need to update your ECS task definition to expose port ${SERVER_PORT}"
+        echo "Setting desired count to 0..."
+        # Use temporary file to capture output
+        TEMP_OUTPUT=$(mktemp)
+        if ! aws ecs update-service \
+            --cluster ${CLUSTER_NAME} \
+            --service ${SERVICE_NAME} \
+            --desired-count 0 \
+            --region ${REGION} > "$TEMP_OUTPUT" 2>&1; then
+            cat "$TEMP_OUTPUT"
+            rm "$TEMP_OUTPUT"
+            error "Failed to update service count to 0"
+        fi
+        rm "$TEMP_OUTPUT"
+
+        echo "Waiting for tasks to stop..."
+        while true; do
+            RUNNING_COUNT=$(aws ecs describe-services \
+                --cluster ${CLUSTER_NAME} \
+                --services ${SERVICE_NAME} \
+                --region ${REGION} \
+                --query 'services[0].runningCount' \
+                --output text)
+            
+            if [ "$RUNNING_COUNT" = "0" ]; then
+                break
+            fi
+            echo "Still waiting for tasks to stop... ($RUNNING_COUNT running)"
+            sleep 5
+        done
+
+        echo "Starting new deployment..."
+        # Use temporary file for output
+        TEMP_OUTPUT=$(mktemp)
+        if ! aws ecs update-service \
+            --cluster ${CLUSTER_NAME} \
+            --service ${SERVICE_NAME} \
+            --desired-count 1 \
+            --force-new-deployment \
+            --region ${REGION} > "$TEMP_OUTPUT" 2>&1; then
+            cat "$TEMP_OUTPUT"
+            rm "$TEMP_OUTPUT"
+            error "Failed to start new deployment"
+        fi
+        rm "$TEMP_OUTPUT"
+
+        echo "Waiting for new task to start..."
+        TIMEOUT=60  # 5 minutes (12 * 5 seconds)
+        COUNT=0
+        while [ $COUNT -lt $TIMEOUT ]; do
+            RUNNING_COUNT=$(aws ecs describe-services \
+                --cluster ${CLUSTER_NAME} \
+                --services ${SERVICE_NAME} \
+                --region ${REGION} \
+                --query 'services[0].runningCount' \
+                --output text)
+            
+            if [ "$RUNNING_COUNT" = "1" ]; then
+                echo "New task is running!"
+                break
+            fi
+            echo "Waiting for new task to start... ($RUNNING_COUNT running)"
+            COUNT=$((COUNT + 1))
+            sleep 5
+
+            if [ $COUNT -eq $TIMEOUT ]; then
+                error "Timeout waiting for new task to start"
+            fi
+        done
+
+        echo "${1} environment updated and redeployed successfully!"
         ;;
 esac

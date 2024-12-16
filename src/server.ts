@@ -40,29 +40,17 @@ async function compile(req: Request, res: Response): Promise<void> {
 		const { userCode, pipUUID } = req.body as CompileRequest
 		console.log(`Starting compilation for PIP: ${pipUUID}`)
 
+		process.env.USER_CODE = userCode
+		process.env.PIP_ID = pipUUID
+		process.env.ENVIRONMENT = "staging"
+		process.env.WARMUP = "false"
+
 		await execAsync("rm -rf /workspace/.pio/build/*")
 
-		// Format user code with includes and wrapper
-		const formattedCode = `#include "./include/config.h"
-			#include "./include/rgb_led.h"
-			#include "./include/user_code.h"
+		const { stdout, stderr } = await execAsync("/app/entrypoint.sh")
 
-			void user_code() {
-			${userCode}
-			}`
-
-		// Write formatted user code
-		await execAsync(`
-            mkdir -p /workspace/src && \
-            echo '${formattedCode.replace(/'/g, "'\\''")}' > /workspace/src/user_code.cpp
-        `)
-
-		// Run compilation
-		const { stdout, stderr } = await execAsync(
-			"cd /workspace && PLATFORMIO_BUILD_CACHE_DIR=\"/root/.platformio/cache\" platformio run --environment staging"
-		)
-		console.log("Compilation output:", stdout)
-		if (stderr) console.error("Compilation errors:", stderr)
+		console.log("Entrypoint output:", stdout)
+		if (stderr) console.error("Entrypoint errors:", stderr)
 
 		// Verify binary exists and stream it back
 		const binaryPath = "/workspace/.pio/build/staging/firmware.bin"
