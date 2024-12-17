@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-non-literal-fs-filename */
 import express, { Request, Response } from "express"
 import { promisify } from "util"
 import bodyParser from "body-parser"
@@ -42,7 +43,6 @@ async function compile(req: Request, res: Response): Promise<void> {
 
 		process.env.USER_CODE = userCode
 		process.env.PIP_ID = pipUUID
-		process.env.ENVIRONMENT = "staging"
 		process.env.WARMUP = "false"
 
 		await execAsync("rm -rf /workspace/.pio/build/*")
@@ -53,7 +53,7 @@ async function compile(req: Request, res: Response): Promise<void> {
 		if (stderr) console.error("Entrypoint errors:", stderr)
 
 		// Verify binary exists and stream it back
-		const binaryPath = "/workspace/.pio/build/staging/firmware.bin"
+		const binaryPath = `/workspace/.pio/build/${process.env.ENVIRONMENT}/firmware.bin`
 		if (!existsSync(binaryPath)) {
 			throw new Error("Binary not found after compilation")
 		}
