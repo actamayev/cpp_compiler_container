@@ -75,24 +75,23 @@ async function processDirectory(dirPath: string, targetPath: string, branch: Git
 
 async function cleanWorkspace(workspaceDir: string): Promise<void> {
 	try {
-		// First, try to list any processes using the directory
-		await execAsync(`lsof +D ${workspaceDir}`).catch(() => {
-			// If lsof fails, it likely means no processes are using the directory
-			return null
-		})
-
-		// Add a small delay to allow any lingering processes to complete
-		await new Promise(resolve => setTimeout(resolve, 1000))
+		// Debug directory permissions and ownership
+		console.log("Checking workspace permissions...")
+		await execAsync(`ls -la ${workspaceDir}`)
+		await execAsync(`stat ${workspaceDir}`)
 
 		// Try to remove the directory
 		rmSync(workspaceDir, { recursive: true, force: true })
 
-		// Wait a moment before recreating
-		await new Promise(resolve => setTimeout(resolve, 500))
-
-		// Recreate the directory structure
-		await mkdir(workspaceDir, { recursive: true })
-		await mkdir(path.join(workspaceDir, "src"), { recursive: true })
+		// Recreate with explicit permissions
+		await mkdir(workspaceDir, {
+			recursive: true,
+			mode: 0o777  // Full permissions
+		})
+		await mkdir(path.join(workspaceDir, "src"), {
+			recursive: true,
+			mode: 0o777
+		})
 	} catch (error) {
 		console.error("Error during workspace cleanup:", error)
 		throw new Error(`Failed to clean workspace: ${error}`)
@@ -109,21 +108,7 @@ export default async function updateFirmware(_req: Request, res: Response): Prom
 		console.log(`Fetching firmware from GitHub branch: ${branch} for environment: ${environment}`)
 
 		// Clean workspace with retry logic
-		let retries = 3
-		while (retries > 0) {
-			try {
-				await cleanWorkspace(workspaceDir)
-				break
-			} catch (error) {
-				retries--
-				// eslint-disable-next-line max-depth
-				if (retries === 0) {
-					throw error
-				}
-				console.log(`Retry cleaning workspace, attempts remaining: ${retries}`)
-				await new Promise(resolve => setTimeout(resolve, 2000))
-			}
-		}
+		await cleanWorkspace(workspaceDir)
 
 		// Get core files
 		console.log("Fetching core configuration files...")
