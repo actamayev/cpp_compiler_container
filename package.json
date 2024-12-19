@@ -34,7 +34,8 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "express": "^4.21.2",
-    "octokit": "^4.0.2"
+    "@octokit/auth-app": "^3.0.0",
+    "@octokit/rest": "^21.0.2",
+    "express": "^4.21.2"
   }
 }

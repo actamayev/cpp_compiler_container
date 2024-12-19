@@ -2,28 +2,37 @@
 import path from "path"
 import { rmSync } from "fs"
 import { promisify } from "util"
-import { Octokit } from "octokit"
 import { exec } from "child_process"
 import { Request, Response } from "express"
-import { createAppAuth } from "@octokit/auth-app"
 import { mkdir, writeFile, access } from "fs/promises"
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods"
 
 type GithubBranches = "main" | "staging"
 
 const execAsync = promisify(exec)
 
-const octokit = new Octokit({
-	authStrategy: createAppAuth,
-	auth: {
-	  appId: process.env.GITHUB_APP_ID,
-	  privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
-	  installationId: process.env.GITHUB_INSTALLATION_ID
-	}
-})
-
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-async function getFileContent(owner: string, repo: string, repoPath: string, ref: string) {
+const initOctokit = async () => {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	const { Octokit } = await import("@octokit/rest")
+	const { createAppAuth } = await import("@octokit/auth-app")
+
+	return new Octokit({
+	  authStrategy: createAppAuth,
+	  auth: {
+			appId: process.env.GITHUB_APP_ID,
+			privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+			installationId: process.env.GITHUB_INSTALLATION_ID
+	  }
+	})
+}
+
+type GitHubContent = RestEndpointMethodTypes["repos"]["getContent"]["response"]["data"];
+
+async function getFileContent(owner: string, repo: string, repoPath: string, ref: string): Promise<GitHubContent> {
 	try {
+		const octokit = await initOctokit()
+
 		const response = await octokit.rest.repos.getContent({
 			owner,
 			repo,
@@ -41,6 +50,11 @@ async function getFileContent(owner: string, repo: string, repoPath: string, ref
 async function processDirectory(dirPath: string, targetPath: string, branch: GithubBranches): Promise<void> {
 	const contents = await getFileContent("bluedotrobots", "pip-bot-firmware", dirPath, branch)
 
+	// Check if contents is an array (directory listing)
+	if (!Array.isArray(contents)) {
+		throw new Error(`Expected directory contents for path: ${dirPath}`)
+	}
+
 	for (const item of contents) {
 		const fullPath = path.join(targetPath, item.name)
 
@@ -48,14 +62,19 @@ async function processDirectory(dirPath: string, targetPath: string, branch: Git
 			await mkdir(fullPath, { recursive: true })
 			await processDirectory(`${dirPath}/${item.name}`, fullPath, branch)
 		} else if (item.type === "file") {
-			const content = await getFileContent("bluedotrobots", "pip-bot-firmware", item.path, branch)
-			await writeFile(fullPath, content)
+			const fileContent = await getFileContent("bluedotrobots", "pip-bot-firmware", item.path, branch)
+			if (!("content" in fileContent)) {
+				throw new Error(`No content found for file: ${item.path}`)
+			}
+			// GitHub API returns base64 encoded content
+			const decoded = Buffer.from(fileContent.content, "base64").toString("utf8")
+			await writeFile(fullPath, decoded)
 		}
 	}
 }
 
-// eslint-disable-next-line max-lines-per-function
-export default async function retrieveFirmware(req: Request, res: Response): Promise<void> {
+// eslint-disable-next-line max-lines-per-function, complexity
+export default async function retrieveFirmware(_req: Request, res: Response): Promise<void> {
 	try {
 		const environment = process.env.ENVIRONMENT || "staging"
 		const branch = environment === "production" ? "main" : "staging"
@@ -74,7 +93,15 @@ export default async function retrieveFirmware(req: Request, res: Response): Pro
 		for (const file of coreFiles) {
 			try {
 				const content = await getFileContent("bluedotrobots", "pip-bot-firmware", file, branch)
-				await writeFile(path.join(workspaceDir, file), content)
+				// Check if content is a file (not a directory) and has content property
+				// eslint-disable-next-line max-depth
+				if (!Array.isArray(content) && "content" in content) {
+					// Decode the base64 content
+					const decoded = Buffer.from(content.content, "base64").toString("utf8")
+					await writeFile(path.join(workspaceDir, file), decoded)
+				} else {
+					throw new Error(`Invalid content received for file ${file}`)
+				}
 			} catch (error) {
 				throw new Error(`Failed to fetch required file ${file}: ${error}`)
 			}
