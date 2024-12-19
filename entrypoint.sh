@@ -18,7 +18,6 @@ df -h /root/.platformio
 pio_env="${ENVIRONMENT:-local}"
 FIRMWARE_SOURCE="${FIRMWARE_SOURCE:-}"
 WORKSPACE_DIR="/workspace"
-WARMUP="${WARMUP:-false}"  # Default to false
 
 if [ "$pio_env" = "local" ] && [ -n "${WORKSPACE_DIR:-}" ]; then
     WORKSPACE_BASE_DIR="$WORKSPACE_DIR"
@@ -31,29 +30,6 @@ INCLUDE_DIR="$SRC_DIR/include"
 BUILD_DIR="$WORKSPACE_BASE_DIR/.pio/build/${pio_env}"
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
 HEADER_FILE="$INCLUDE_DIR/user_code.h"
-
-# Function to fetch and extract firmware from S3
-fetch_firmware() {
-    local env="$pio_env"
-    local s3_bucket=""
-    local s3_key="firmware/latest/firmware.zip"
-
-    if [ "$env" = "production" ]; then
-        s3_bucket="${PRODUCTION_FIRMWARE_BUCKET:-production-pip-firmware}"
-    else
-        s3_bucket="${STAGING_FIRMWARE_BUCKET:-staging-pip-firmware}"
-    fi
-
-    log "Fetching firmware from S3 bucket: ${s3_bucket} for environment: $env"
-    if ! aws s3 cp "s3://${s3_bucket}/${s3_key}" /tmp/firmware.zip; then
-        error "Failed to fetch firmware from S3"
-    fi
-
-    log "Extracting firmware..."
-    rm -rf "$WORKSPACE_BASE_DIR"/*
-    unzip -q /tmp/firmware.zip -d "$WORKSPACE_BASE_DIR"
-    rm /tmp/firmware.zip
-}
 
 # Initialize workspace
 init_workspace() {
@@ -91,8 +67,6 @@ if [ "$pio_env" = "local" ]; then
     else
         error "FIRMWARE_SOURCE ($FIRMWARE_SOURCE) not set or directory not found"
     fi
-else
-    fetch_firmware
 fi
 
 # Check if the USER_CODE environment variable is set
@@ -150,22 +124,6 @@ fi
 
 # Output binary info to stderr
 log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
-
-# TODO: Do we need this?:
-if [ "$WARMUP" = "true" ]; then
-    log "Warmup complete - dependencies cached in /root/.platformio"
-    exit 0
-fi
-
-# TODO: Remove this (not using S3. delete the bucket to see if it's being used anywhere (delete from secrets, enviroenmtn vars too))
-# If S3 bucket info is provided, upload the binary
-if [ -n "${COMPILED_BINARY_OUTPUT_BUCKET}" ] && [ -n "${OUTPUT_KEY}" ]; then
-    log "Attempting S3 upload..."
-    log "Bucket: ${COMPILED_BINARY_OUTPUT_BUCKET}"
-    log "Key: ${OUTPUT_KEY}"
-    log "File exists: $(ls -l $BUILD_DIR/firmware.bin)"
-    aws s3 cp "$BUILD_DIR/firmware.bin" "s3://${COMPILED_BINARY_OUTPUT_BUCKET}/${OUTPUT_KEY}" --debug
-fi
 
 # Only output binary to stdout for local environment
 if [ "$pio_env" = "local" ]; then
