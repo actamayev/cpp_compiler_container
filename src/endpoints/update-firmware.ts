@@ -73,6 +73,32 @@ async function processDirectory(dirPath: string, targetPath: string, branch: Git
 	}
 }
 
+async function cleanWorkspace(workspaceDir: string): Promise<void> {
+	try {
+		// First, try to list any processes using the directory
+		await execAsync(`lsof +D ${workspaceDir}`).catch(() => {
+			// If lsof fails, it likely means no processes are using the directory
+			return null
+		})
+
+		// Add a small delay to allow any lingering processes to complete
+		await new Promise(resolve => setTimeout(resolve, 1000))
+
+		// Try to remove the directory
+		rmSync(workspaceDir, { recursive: true, force: true })
+
+		// Wait a moment before recreating
+		await new Promise(resolve => setTimeout(resolve, 500))
+
+		// Recreate the directory structure
+		await mkdir(workspaceDir, { recursive: true })
+		await mkdir(path.join(workspaceDir, "src"), { recursive: true })
+	} catch (error) {
+		console.error("Error during workspace cleanup:", error)
+		throw new Error(`Failed to clean workspace: ${error}`)
+	}
+}
+
 // eslint-disable-next-line max-lines-per-function, complexity
 export default async function updateFirmware(_req: Request, res: Response): Promise<void> {
 	try {
@@ -82,10 +108,22 @@ export default async function updateFirmware(_req: Request, res: Response): Prom
 
 		console.log(`Fetching firmware from GitHub branch: ${branch} for environment: ${environment}`)
 
-		// Clean workspace directory
-		rmSync(workspaceDir, { recursive: true, force: true })
-		await mkdir(workspaceDir, { recursive: true })
-		await mkdir(path.join(workspaceDir, "src"), { recursive: true })
+		// Clean workspace with retry logic
+		let retries = 3
+		while (retries > 0) {
+			try {
+				await cleanWorkspace(workspaceDir)
+				break
+			} catch (error) {
+				retries--
+				// eslint-disable-next-line max-depth
+				if (retries === 0) {
+					throw error
+				}
+				console.log(`Retry cleaning workspace, attempts remaining: ${retries}`)
+				await new Promise(resolve => setTimeout(resolve, 2000))
+			}
+		}
 
 		// Get core files
 		console.log("Fetching core configuration files...")
@@ -93,10 +131,8 @@ export default async function updateFirmware(_req: Request, res: Response): Prom
 		for (const file of coreFiles) {
 			try {
 				const content = await getFileContent("bluedotrobots", "pip-bot-firmware", file, branch)
-				// Check if content is a file (not a directory) and has content property
 				// eslint-disable-next-line max-depth
 				if (!Array.isArray(content) && "content" in content) {
-					// Decode the base64 content
 					const decoded = Buffer.from(content.content, "base64").toString("utf8")
 					await writeFile(path.join(workspaceDir, file), decoded)
 				} else {
@@ -131,7 +167,7 @@ export default async function updateFirmware(_req: Request, res: Response): Prom
 			environment,
 			timestamp: new Date().toISOString()
 		})
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	} catch (error: any) {
 		console.error("Failed to retrieve firmware:", error)
 		res.status(500).json({
