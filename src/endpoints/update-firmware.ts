@@ -74,7 +74,7 @@ async function processDirectory(dirPath: string, targetPath: string, branch: Git
 }
 
 // eslint-disable-next-line max-lines-per-function, complexity
-export default async function retrieveFirmware(_req: Request, res: Response): Promise<void> {
+export default async function updateFirmware(_req: Request, res: Response): Promise<void> {
 	try {
 		const environment = process.env.ENVIRONMENT || "staging"
 		const branch = environment === "production" ? "main" : "staging"

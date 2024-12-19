@@ -1,7 +1,7 @@
 import express from "express"
 import bodyParser from "body-parser"
 import compile from "./endpoints/compile"
-import retrieveFirmware from "./endpoints/retrieve-firmware"
+import updateFirmware from "./endpoints/update-firmware"
 
 const app = express()
 
@@ -26,7 +26,7 @@ app.get("/health", (req, res) => {
 })
 
 app.post("/compile", compile)
-app.post("/retrieve-firmware", retrieveFirmware)
+app.post("/update-firmware", updateFirmware)
 
 app.listen(Number(process.env.SERVER_PORT), "0.0.0.0", () => {
 	console.log(`Compiler server listening at http://0.0.0.0:${process.env.SERVER_PORT}`)
