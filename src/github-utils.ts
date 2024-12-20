@@ -1,13 +1,14 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable security/detect-non-literal-fs-filename */
 import path from "path"
 import { mkdir, writeFile } from "fs/promises"
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods"
+import { Readable } from "stream"
 
 type GithubBranches = "main" | "staging"
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const initOctokit = async () => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const { Octokit } = await import("@octokit/rest")
 	const { createAppAuth } = await import("@octokit/auth-app")
 
@@ -23,7 +24,7 @@ const initOctokit = async () => {
 
 type GitHubContent = RestEndpointMethodTypes["repos"]["getContent"]["response"]["data"];
 
-export async function getFileContent(owner: string, repo: string, repoPath: string, ref: string): Promise<GitHubContent> {
+async function getFileContent(owner: string, repo: string, repoPath: string, ref: string): Promise<GitHubContent> {
 	try {
 		const octokit = await initOctokit()
 
@@ -41,7 +42,7 @@ export async function getFileContent(owner: string, repo: string, repoPath: stri
 }
 
 // Get source directory contents recursively
-export async function processDirectory(dirPath: string, targetPath: string, branch: GithubBranches): Promise<void> {
+async function processDirectory(dirPath: string, targetPath: string, branch: GithubBranches): Promise<void> {
 	const contents = await getFileContent("bluedotrobots", "pip-bot-firmware", dirPath, branch)
 
 	// Check if contents is an array (directory listing)
@@ -65,4 +66,36 @@ export async function processDirectory(dirPath: string, targetPath: string, bran
 			await writeFile(fullPath, decoded)
 		}
 	}
+}
+
+export async function downloadAndExtractRepo(
+	owner: string,
+	repo: string,
+	branch: string,
+	workspaceDir: string
+): Promise<void> {
+	const { Extract } = await import("unzipper")
+	const octokit = await initOctokit()
+
+	// Get the ZIP archive
+	const response = await octokit.rest.repos.downloadZipballArchive({
+	  owner,
+	  repo,
+	  ref: branch
+	})
+
+	if (!(response.data instanceof Buffer)) {
+	  throw new Error("Expected ZIP content to be a Buffer")
+	}
+
+	// Create a read stream from the buffer
+	const zipStream = Readable.from(response.data)
+
+	// Extract the ZIP contents
+	await new Promise<void>((resolve, reject) => {
+	  zipStream
+			.pipe(Extract({ path: workspaceDir }))
+			.on("close", () => resolve())
+			.on("error", (err: Error) => reject(err))
+	})
 }
