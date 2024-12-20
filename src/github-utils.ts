@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { Readable } from "stream"
+import { Extract } from "unzipper"
 import { Octokit } from "@octokit/rest"
 import { createAppAuth } from "@octokit/auth-app"
 
@@ -21,28 +21,32 @@ export async function downloadAndExtractRepo(
 	branch: string,
 	workspaceDir: string
 ): Promise<void> {
-	const { Extract } = await import("unzipper")
-	const octokit = initOctokit()
+	try {
+		const octokit = initOctokit()
 
-	// Get the ZIP archive
-	const response = await octokit.rest.repos.downloadZipballArchive({
-	  owner,
-	  repo,
-	  ref: branch
-	})
+		// Get the ZIP archive
+		const response = await octokit.rest.repos.downloadZipballArchive({
+			owner,
+			repo,
+			ref: branch
+		})
 
-	if (!(response.data instanceof Buffer)) {
-	  throw new Error("Expected ZIP content to be a Buffer")
+		if (!(response.data instanceof Buffer)) {
+			throw new Error("Expected ZIP content to be a Buffer")
+		}
+
+		// Create a read stream from the buffer
+		const zipStream = Readable.from(response.data)
+
+		// Extract the ZIP contents
+		await new Promise<void>((resolve, reject) => {
+			zipStream
+				.pipe(Extract({ path: workspaceDir }))
+				.on("close", () => resolve())
+				.on("error", (err: Error) => reject(err))
+		})
+	} catch (error) {
+		console.error(error)
+		throw error
 	}
-
-	// Create a read stream from the buffer
-	const zipStream = Readable.from(response.data)
-
-	// Extract the ZIP contents
-	await new Promise<void>((resolve, reject) => {
-	  zipStream
-			.pipe(Extract({ path: workspaceDir }))
-			.on("close", () => resolve())
-			.on("error", (err: Error) => reject(err))
-	})
 }
