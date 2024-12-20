@@ -5,96 +5,52 @@ import { promisify } from "util"
 import { exec } from "child_process"
 import { Request, Response } from "express"
 import { mkdir, writeFile, access } from "fs/promises"
-import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods"
-
-type GithubBranches = "main" | "staging"
+import { getFileContent, processDirectory } from "../github-utils"
 
 const execAsync = promisify(exec)
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-const initOctokit = async () => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const { Octokit } = await import("@octokit/rest")
-	const { createAppAuth } = await import("@octokit/auth-app")
-
-	return new Octokit({
-	  authStrategy: createAppAuth,
-	  auth: {
-			appId: process.env.GITHUB_APP_ID,
-			privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
-			installationId: process.env.GITHUB_INSTALLATION_ID
-	  }
-	})
-}
-
-type GitHubContent = RestEndpointMethodTypes["repos"]["getContent"]["response"]["data"];
-
-async function getFileContent(owner: string, repo: string, repoPath: string, ref: string): Promise<GitHubContent> {
-	try {
-		const octokit = await initOctokit()
-
-		const response = await octokit.rest.repos.getContent({
-			owner,
-			repo,
-			path: repoPath,
-			ref
-		})
-		return response.data
-	} catch (error) {
-		console.error(error)
-		throw error
-	}
-}
-
-// Get source directory contents recursively
-async function processDirectory(dirPath: string, targetPath: string, branch: GithubBranches): Promise<void> {
-	const contents = await getFileContent("bluedotrobots", "pip-bot-firmware", dirPath, branch)
-
-	// Check if contents is an array (directory listing)
-	if (!Array.isArray(contents)) {
-		throw new Error(`Expected directory contents for path: ${dirPath}`)
-	}
-
-	for (const item of contents) {
-		const fullPath = path.join(targetPath, item.name)
-
-		if (item.type === "dir") {
-			await mkdir(fullPath, { recursive: true })
-			await processDirectory(`${dirPath}/${item.name}`, fullPath, branch)
-		} else if (item.type === "file") {
-			const fileContent = await getFileContent("bluedotrobots", "pip-bot-firmware", item.path, branch)
-			if (!("content" in fileContent)) {
-				throw new Error(`No content found for file: ${item.path}`)
-			}
-			// GitHub API returns base64 encoded content
-			const decoded = Buffer.from(fileContent.content, "base64").toString("utf8")
-			await writeFile(fullPath, decoded)
-		}
-	}
-}
-
 async function cleanWorkspace(workspaceDir: string): Promise<void> {
-	try {
-		// Debug directory permissions and ownership
-		console.log("Checking workspace permissions...")
-		await execAsync(`ls -la ${workspaceDir}`)
-		await execAsync(`stat ${workspaceDir}`)
+	const maxRetries = 3
+	const retryDelay = 1000 // 1 second
 
-		// Try to remove the directory
-		rmSync(workspaceDir, { recursive: true, force: true })
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			console.log(`Cleanup attempt ${attempt}/${maxRetries}...`)
 
-		// Recreate with explicit permissions
-		await mkdir(workspaceDir, {
-			recursive: true,
-			mode: 0o777  // Full permissions
-		})
-		await mkdir(path.join(workspaceDir, "src"), {
-			recursive: true,
-			mode: 0o777
-		})
-	} catch (error) {
-		console.error("Error during workspace cleanup:", error)
-		throw new Error(`Failed to clean workspace: ${error}`)
+			// Debug directory usage
+			console.log("Checking processes using workspace...")
+			await execAsync(`lsof +D ${workspaceDir} || true`)
+
+			// Try to remove contents first
+			const contents = await execAsync(`find ${workspaceDir} -mindepth 1 -delete`)
+			console.log("Removed contents:", contents.stdout)
+
+			// Remove the directory itself
+			rmSync(workspaceDir, { recursive: true, force: true })
+
+			// Recreate with explicit permissions
+			await mkdir(workspaceDir, {
+				recursive: true,
+				mode: 0o777  // Full permissions
+			})
+			await mkdir(path.join(workspaceDir, "src"), {
+				recursive: true,
+				mode: 0o777
+			})
+
+			console.log("Workspace cleaned successfully")
+			return
+
+		} catch (error) {
+			console.error(`Attempt ${attempt} failed:`, error)
+
+			if (attempt === maxRetries) {
+				throw new Error(`Failed to clean workspace after ${maxRetries} attempts: ${error}`)
+			}
+
+			// Wait before retrying
+			await new Promise(resolve => setTimeout(resolve, retryDelay))
+		}
 	}
 }
 

@@ -43,23 +43,54 @@ jobs:
 
       - name: Test staging and production environments
         run: |
-            # Create persistent volumes for tests
-            docker volume create firmware-compiler-workspace
-            docker volume create pio-cache
-  
-            # Test direct execution (entrypoint.sh)
-            for env in "staging" "production"; do
-              echo "Testing $env environment direct execution..."
-              docker run --rm \
-                -v firmware-compiler-workspace:/workspace \
-                -v pio-cache:/root/.platformio \
-                -e USER_CODE='delay(1000);' \
-                -e ENVIRONMENT=$env \
-                -e PIP_ID=test123 \
-                firmware-compiler:test /app/entrypoint.sh  # Explicitly call entrypoint.sh
-            done
+              # Create persistent volumes for tests
+              docker volume create firmware-compiler-workspace
+              docker volume create pio-cache
 
+              # Test server for each environment
+              for env in "staging" "production"; do
+                echo "Testing $env environment server..."
+
+                # Start the container in detached mode
+                CONTAINER_ID=$(docker run -d \
+                  -p 3001:3001 \
+                  -v firmware-compiler-workspace:/workspace \
+                  -v pio-cache:/root/.platformio \
+                  -e ENVIRONMENT=$env \
+                  -e SERVER_PORT=3001 \
+                  firmware-compiler:test)
+
+                # Wait for server to start
+                echo "Waiting for server to start..."
+                sleep 10
+
+                # Test health endpoint first
+                echo "Testing health endpoint..."
+                health_response=$(curl -s http://localhost:3001/health)
+                echo "Health check response: $health_response"
+
+                # Test compile endpoint
+                echo "Testing compile endpoint..."
+                compile_response=$(curl -X POST \
+                  -H "Content-Type: application/json" \
+                  -d '{"userCode":"delay(1000);","pipUUID":"test123"}' \
+                  http://localhost:3001/compile)
+                echo "Compile response: $compile_response"
+
+                # Check if compile response indicates success
+                if echo "$compile_response" | grep -q '"success":false'; then
+                  echo "Compilation failed in $env environment"
+                  docker logs $CONTAINER_ID
+                  docker stop $CONTAINER_ID
+                  exit 1
+                fi
+                
+                # Stop the container
+                docker stop $CONTAINER_ID
+              done
+  
       - name: Cleanup
         if: always()
         run: |
-          docker system prune -f
+            docker system prune -f
+            docker volume rm firmware-compiler-workspace pio-cache

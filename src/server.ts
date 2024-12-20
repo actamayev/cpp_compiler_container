@@ -1,4 +1,4 @@
-import express from "express"
+import express, {Request, Response} from "express"
 import bodyParser from "body-parser"
 import compile from "./endpoints/compile"
 import updateFirmware from "./endpoints/update-firmware"
@@ -28,7 +28,31 @@ app.get("/health", (req, res) => {
 app.post("/compile", compile)
 app.post("/update-firmware", updateFirmware)
 
-app.listen(Number(process.env.SERVER_PORT), "0.0.0.0", () => {
+async function initializeFirmware(): Promise<void> {
+	try {
+		// Create mock req/res objects
+		const mockReq = {} as Request
+		const mockRes = {
+			json: (data: string) => {
+				console.log("Firmware initialization result:", data)
+			},
+			status: (code: number) => ({
+				json: (data: string): void => {
+					console.log(`Firmware initialization failed (${code}):`, data)
+				}
+			})
+		} as Response
+
+		await updateFirmware(mockReq, mockRes)
+	} catch (error) {
+		console.error("Failed to initialize firmware:", error)
+	}
+}
+
+app.listen(Number(process.env.SERVER_PORT), "0.0.0.0", async () => {
 	console.log(`Compiler server listening at http://0.0.0.0:${process.env.SERVER_PORT}`)
 	console.log(`Environment: ${process.env.ENVIRONMENT || "unknown"}`)
+
+	// Initialize firmware after server starts
+	await initializeFirmware()
 })
