@@ -62,7 +62,6 @@ RUN apt-get update && \
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
     PLATFORMIO_UPLOAD_SPEED="921600" \
     WORKSPACE_DIR="/workspace" \
-    AWS_DEFAULT_REGION="us-east-1" \
     SERVER_PORT=3001
 
 # Install PlatformIO

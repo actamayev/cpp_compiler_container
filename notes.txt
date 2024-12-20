@@ -31,7 +31,7 @@ To get into the container after inside the instance:
 	`sudo docker exec -it aaf4218537b3 /bin/bash`
 
 Can run node commands within the container:
-	`node -e "console.log(process.env.GITHUB_APP_PRIVATE_KEY)"`
+	node -e "console.log(process.env)"
 
 Forcing a new deployment will not work. It will hang in 'in progress' mode because the CPU/memory necessary for the task defintion only allows for 1 Task to run at a time.
 

@@ -29,7 +29,6 @@ SRC_DIR="$WORKSPACE_BASE_DIR/src"
 INCLUDE_DIR="$SRC_DIR/include"
 BUILD_DIR="$WORKSPACE_BASE_DIR/.pio/build/${pio_env}"
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
-HEADER_FILE="$INCLUDE_DIR/user_code.h"
 
 # Initialize workspace
 init_workspace() {
@@ -91,7 +90,7 @@ ${USER_CODE//\'}
 EOL
 
 # Build the project
-cd "$WORKSPACE_BASE_DIR"
+cd "$WORKSPACE_BASE_DIR" || exit
 
 # Verify platformio.ini exists
 if [ ! -f "$WORKSPACE_BASE_DIR/platformio.ini" ]; then

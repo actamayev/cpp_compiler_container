@@ -81,10 +81,6 @@ case "$1" in
             -v pio-cache:/root/.platformio \
             -e FIRMWARE_SOURCE=/firmware \
             -e ENVIRONMENT=local \
-            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-            -e AWS_REGION="$REGION" \
-            -e COMPILED_BINARY_OUTPUT_BUCKET=staging-compiled-binary-output \
             -e SERVER_PORT=${SERVER_PORT} \
             firmware-compiler:latest
 
@@ -119,7 +115,7 @@ case "$1" in
             --push \
             --build-arg ENVIRONMENT="$1" \
             --build-arg SERVER_PORT=${SERVER_PORT} \
-            -t ${ECR_URL}/${IMAGE_NAME}:${1} \
+            -t ${ECR_URL}/${IMAGE_NAME}:"${1}" \
             . || error "${1} build failed"
 
         if [ "$1" = "production" ]; then
@@ -133,14 +129,14 @@ case "$1" in
         fi
 
         echo "Verifying image manifest..."
-        docker buildx imagetools inspect ${ECR_URL}/${IMAGE_NAME}:${1} || error "Manifest verification failed"
+        docker buildx imagetools inspect ${ECR_URL}/${IMAGE_NAME}:"${1}" || error "Manifest verification failed"
 
         echo "Setting desired count to 0..."
         # Use temporary file to capture output
         TEMP_OUTPUT=$(mktemp)
         if ! aws ecs update-service \
-            --cluster ${CLUSTER_NAME} \
-            --service ${SERVICE_NAME} \
+            --cluster "${CLUSTER_NAME}" \
+            --service "${SERVICE_NAME}" \
             --desired-count 0 \
             --region ${REGION} > "$TEMP_OUTPUT" 2>&1; then
             cat "$TEMP_OUTPUT"
@@ -152,8 +148,8 @@ case "$1" in
         echo "Waiting for tasks to stop..."
         while true; do
             RUNNING_COUNT=$(aws ecs describe-services \
-                --cluster ${CLUSTER_NAME} \
-                --services ${SERVICE_NAME} \
+                --cluster "${CLUSTER_NAME}" \
+                --services "${SERVICE_NAME}" \
                 --region ${REGION} \
                 --query 'services[0].runningCount' \
                 --output text)
@@ -169,8 +165,8 @@ case "$1" in
         # Use temporary file for output
         TEMP_OUTPUT=$(mktemp)
         if ! aws ecs update-service \
-            --cluster ${CLUSTER_NAME} \
-            --service ${SERVICE_NAME} \
+            --cluster "${CLUSTER_NAME}" \
+            --service "${SERVICE_NAME}" \
             --desired-count 1 \
             --force-new-deployment \
             --region ${REGION} > "$TEMP_OUTPUT" 2>&1; then
@@ -185,12 +181,12 @@ case "$1" in
         COUNT=0
         while [ $COUNT -lt $TIMEOUT ]; do
             RUNNING_COUNT=$(aws ecs describe-services \
-                --cluster ${CLUSTER_NAME} \
-                --services ${SERVICE_NAME} \
+                --cluster "${CLUSTER_NAME}" \
+                --services "${SERVICE_NAME}" \
                 --region ${REGION} \
                 --query 'services[0].runningCount' \
                 --output text)
-            
+
             if [ "$RUNNING_COUNT" = "1" ]; then
                 echo "New task is running!"
                 break

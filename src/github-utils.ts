@@ -9,7 +9,8 @@ const initOctokit = () => {
 	  authStrategy: createAppAuth,
 	  auth: {
 			appId: process.env.GITHUB_APP_ID,
-			privateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			privateKey: process.env.GITHUB_APP_PRIVATE_KEY!.replace(/\\n/g, "\n"),
 			installationId: process.env.GITHUB_INSTALLATION_ID
 		}
 	})
@@ -28,15 +29,16 @@ export async function downloadAndExtractRepo(
 		const response = await octokit.rest.repos.downloadZipballArchive({
 			owner,
 			repo,
-			ref: branch
+			ref: branch,
+			request: {
+				responseType: "arraybuffer"
+			}
 		})
 
-		if (!(response.data instanceof Buffer)) {
-			throw new Error("Expected ZIP content to be a Buffer")
-		}
+		const buffer = Buffer.from(response.data as unknown as string)
 
 		// Create a read stream from the buffer
-		const zipStream = Readable.from(response.data)
+		const zipStream = Readable.from(buffer)
 
 		// Extract the ZIP contents
 		await new Promise<void>((resolve, reject) => {
