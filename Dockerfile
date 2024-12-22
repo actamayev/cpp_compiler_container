@@ -62,7 +62,10 @@ RUN apt-get update && \
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
     PLATFORMIO_UPLOAD_SPEED="921600" \
     WORKSPACE_DIR="/workspace" \
-    SERVER_PORT=3001
+    SERVER_PORT=3001 \
+    GITHUB_APP_ID="" \
+    GITHUB_APP_PRIVATE_KEY="" \
+    GITHUB_INSTALLATION_ID=""
 
 # Install PlatformIO
 RUN pip3 install --no-cache-dir platformio==6.1.16

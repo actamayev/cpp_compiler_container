@@ -63,6 +63,13 @@ jobs:
                   -e GITHUB_INSTALLATION_ID=${{ secrets.GH_INSTALLATION_ID }} \
                   firmware-compiler:test)
 
+                # Debug: Print environment variables inside container
+                docker exec $CONTAINER_ID env
+
+                # Debug: Check if app can see the variables
+                docker exec $CONTAINER_ID node -e "console.log('GITHUB_APP_ID:', process.env.GITHUB_APP_ID)"
+                docker exec $CONTAINER_ID node -e "console.log('GITHUB_INSTALLATION_ID:', process.env.GITHUB_INSTALLATION_ID)"
+
                 # Wait for server to start
                 echo "Waiting for server to start..."
                 sleep 10

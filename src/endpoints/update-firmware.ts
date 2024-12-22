@@ -2,7 +2,7 @@
 import { promisify } from "util"
 import { exec } from "child_process"
 import { Request, Response } from "express"
-import { downloadAndExtractRepo } from "../github-utils"
+import { downloadAndExtractRepo } from "../utils/github-utils"
 
 const execAsync = promisify(exec)
 
