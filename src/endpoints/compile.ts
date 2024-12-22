@@ -1,4 +1,3 @@
-/* eslint-disable security/detect-non-literal-fs-filename */
 import { promisify } from "util"
 import { exec } from "child_process"
 import { Request, Response } from "express"
