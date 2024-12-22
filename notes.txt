@@ -33,6 +33,9 @@ To get into the container after inside the instance:
 Can run node commands within the container:
 	node -e "console.log(process.env)"
 
+To see logs in real time, ssh into the instance, and run:
+	docker logs -f <container-id>
+
 Forcing a new deployment will not work. It will hang in 'in progress' mode because the CPU/memory necessary for the task defintion only allows for 1 Task to run at a time.
 
 To force a new deployment (bascally restarts):
