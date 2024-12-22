@@ -1,7 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as fs from "fs"
 import * as path from "path"
-import { Readable } from "stream"
-import { Extract } from "unzipper"
 import { Octokit } from "@octokit/rest"
 import { createAppAuth } from "@octokit/auth-app"
 
@@ -16,52 +15,57 @@ const initOctokit = (): InstanceType<typeof Octokit> => {
 	})
 }
 
-function listFilesRecursively(dir: string, baseDir: string = dir): string[] {
-	const files: string[] = []
-	const entries = fs.readdirSync(dir)
+async function downloadFile(
+	octokit: InstanceType<typeof Octokit>,
+	owner: string,
+	repo: string,
+	filePath: string,
+	ref: string
+): Promise<Buffer> {
+	const response = await octokit.rest.repos.getContent({
+		owner,
+		repo,
+		path: filePath,
+		ref,
+		mediaType: {
+			format: "raw"
+		}
+	})
 
-	for (const entry of entries) {
-		const fullPath = path.join(dir, entry)
-		const relativePath = path.relative(baseDir, fullPath)
-		const stat = fs.statSync(fullPath)
+	return Buffer.from(response.data as any)
+}
 
-		if (stat.isDirectory()) {
-			files.push(`[DIR] ${relativePath}`)
-			files.push(...listFilesRecursively(fullPath, baseDir))
+async function listAllFiles(
+	octokit: InstanceType<typeof Octokit>,
+	owner: string,
+	repo: string,
+	filePath: string,
+	ref: string
+): Promise<{ path: string; type: string }[]> {
+	const files: { path: string; type: string }[] = []
+
+	const response = await octokit.rest.repos.getContent({
+		owner,
+		repo,
+		path: filePath,
+		ref
+	})
+
+	const contents = response.data as any[]
+	if (!Array.isArray(contents)) {
+		throw new Error("Expected array of contents")
+	}
+
+	for (const item of contents) {
+		if (item.type === "dir") {
+			const subFiles = await listAllFiles(octokit, owner, repo, item.path, ref)
+			files.push(...subFiles)
 		} else {
-			files.push(relativePath)
+			files.push({ path: item.path, type: item.type })
 		}
 	}
 
 	return files
-}
-
-function moveDirectoryContents(sourcePath: string, targetPath: string): void {
-	const files = listFilesRecursively(sourcePath)
-	console.log("Files to move:", files)
-
-	for (const relativePath of files) {
-		if (relativePath.startsWith("[DIR]")) {
-			// Create directory
-			const dirPath = path.join(targetPath, relativePath.slice(6))
-			if (!fs.existsSync(dirPath)) {
-				fs.mkdirSync(dirPath, { recursive: true })
-			}
-			continue
-		}
-
-		const sourceFile = path.join(sourcePath, relativePath)
-		const targetFile = path.join(targetPath, relativePath)
-
-		// Create target directory if it doesn't exist
-		const targetDir = path.dirname(targetFile)
-		if (!fs.existsSync(targetDir)) {
-			fs.mkdirSync(targetDir, { recursive: true })
-		}
-
-		fs.renameSync(sourceFile, targetFile)
-		console.log(`Moved: ${relativePath}`)
-	}
 }
 
 // eslint-disable-next-line max-lines-per-function
@@ -75,64 +79,55 @@ export async function downloadAndExtractRepo(
 		console.log(`Starting download of ${owner}/${repo}:${branch}`)
 		const octokit = initOctokit()
 
-		// Create a temporary directory for initial extraction
-		const tempDir = path.join(workspaceDir, "_temp")
-		if (!fs.existsSync(tempDir)) {
-			fs.mkdirSync(tempDir)
-		}
+		// Get list of all files in the repository
+		console.log("Listing all files...")
+		const files = await listAllFiles(octokit, owner, repo, "", branch)
+		console.log(`Found ${files.length} files in repository:`)
+		console.log(files.map(f => f.path))
 
-		// Get the ZIP archive
-		console.log("Downloading ZIP archive...")
-		const response = await octokit.rest.repos.downloadZipballArchive({
-			owner,
-			repo,
-			ref: branch,
-			request: {
-				responseType: "arraybuffer"
+		// Download and save each file
+		for (const file of files) {
+			console.log(`Downloading: ${file.path}`)
+			const content = await downloadFile(octokit, owner, repo, file.path, branch)
+
+			const targetPath = path.join(workspaceDir, file.path)
+			const targetDir = path.dirname(targetPath)
+
+			// Create directory if it doesn't exist
+			if (!fs.existsSync(targetDir)) {
+				fs.mkdirSync(targetDir, { recursive: true })
 			}
-		})
 
-		console.log("ZIP archive downloaded, size:", (response.data as string).length, "bytes")
-		const buffer = Buffer.from(response.data as unknown as string)
-
-		// Create a read stream from the buffer
-		const zipStream = Readable.from(buffer)
-
-		// Extract to temp directory first
-		console.log("Extracting ZIP contents...")
-		await new Promise<void>((resolve, reject) => {
-			zipStream
-				.pipe(Extract({ path: tempDir }))
-				.on("close", () => resolve())
-				.on("error", (err: Error) => reject(err))
-		})
-
-		// List contents of temp directory
-		console.log("Temporary directory contents:")
-		const tempContents = listFilesRecursively(tempDir)
-		console.log(tempContents)
-
-		// Get and verify the extracted directory
-		const extractedDir = fs.readdirSync(tempDir)[0]
-		if (!extractedDir) {
-			throw new Error("No files found in extracted archive")
+			// Write file
+			fs.writeFileSync(targetPath, content)
+			console.log(`Saved: ${file.path}`)
 		}
-		const extractedPath = path.join(tempDir, extractedDir)
-		console.log("Extracted directory:", extractedPath)
-
-		// Move all contents to workspace directory
-		console.log("Moving files to workspace...")
-		moveDirectoryContents(extractedPath, workspaceDir)
-
-		// Clean up temp directory
-		console.log("Cleaning up temporary directory...")
-		fs.rmSync(tempDir, { recursive: true, force: true })
 
 		console.log("Final workspace contents:")
+		function listFilesRecursively(dir: string): string[] {
+			const results: string[] = []
+			const entries = fs.readdirSync(dir)
+
+			for (const entry of entries) {
+				const fullPath = path.join(dir, entry)
+				const stat = fs.statSync(fullPath)
+				const relativePath = path.relative(workspaceDir, fullPath)
+
+				if (stat.isDirectory()) {
+					results.push(`[DIR] ${relativePath}`)
+					results.push(...listFilesRecursively(fullPath))
+				} else {
+					results.push(relativePath)
+				}
+			}
+
+			return results
+		}
+
 		console.log(listFilesRecursively(workspaceDir))
 
 	} catch (error) {
-		console.error("Error downloading or extracting repository:", error)
+		console.error("Error downloading repository:", error)
 		throw error
 	}
 }
