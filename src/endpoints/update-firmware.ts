@@ -6,7 +6,7 @@ export default async function updateFirmware(_req: Request, res: Response): Prom
 	try {
 		const environment = process.env.ENVIRONMENT
 
-		if (environment === "Local") {
+		if (environment === "local") {
 			return await retrieveLocalFirmware(res)
 		}
 		await retrieveFirmwareFromGithub(res)
