@@ -16,22 +16,69 @@ df -h /root/.platformio
 
 # Get environment, default to local if not set
 pio_env="${ENVIRONMENT:-local}"
-WORKSPACE_BASE_DIR="/workspace"
-SRC_DIR="$WORKSPACE_BASE_DIR/src"
-USER_CODE_FILE="$SRC_DIR/user_code.cpp"
-BUILD_DIR="$WORKSPACE_BASE_DIR/.pio/build/${pio_env}"
+FIRMWARE_SOURCE="${FIRMWARE_SOURCE:-}"
+WORKSPACE_DIR="/workspace"
 
-# Check if workspace is initialized
-if [ ! -f "$WORKSPACE_BASE_DIR/platformio.ini" ]; then
-    error "Workspace not initialized. Please run /update-firmware first"
+if [ "$pio_env" = "local" ] && [ -n "${WORKSPACE_DIR:-}" ]; then
+    WORKSPACE_BASE_DIR="$WORKSPACE_DIR"
+else
+    WORKSPACE_BASE_DIR="/workspace"
 fi
 
-# Check USER_CODE
+SRC_DIR="$WORKSPACE_BASE_DIR/src"
+INCLUDE_DIR="$SRC_DIR/include"
+BUILD_DIR="$WORKSPACE_BASE_DIR/.pio/build/${pio_env}"
+USER_CODE_FILE="$SRC_DIR/user_code.cpp"
+
+# Initialize workspace
+init_workspace() {
+    log "Initializing workspace..."
+    mkdir -p "$SRC_DIR" "$INCLUDE_DIR" "$BUILD_DIR"
+}
+
+# Main execution starts here
+log "Starting compilation process..."
+log "Using environment: ${pio_env}"
+
+log "FIRMWARE_SOURCE: ${FIRMWARE_SOURCE}"
+
+log "WORKSPACE_BASE_DIR: ${WORKSPACE_BASE_DIR}"
+
+# Always start with a clean workspace
+init_workspace
+
+if [ "$pio_env" = "local" ]; then
+    if [ -n "$FIRMWARE_SOURCE" ] && [ -d "$FIRMWARE_SOURCE" ]; then
+        log "Setting up local workspace..."
+        # Copy core build files
+        cp "$FIRMWARE_SOURCE/platformio.ini" "$WORKSPACE_BASE_DIR/"
+        cp "$FIRMWARE_SOURCE/partitions_custom.csv" "$WORKSPACE_BASE_DIR/"
+
+        # Copy source files
+        mkdir -p "$SRC_DIR"
+        cp -r "$FIRMWARE_SOURCE/src/"* "$SRC_DIR/"
+        
+        # Debug output
+        log "Workspace contents after copy:"
+        ls -la "$WORKSPACE_BASE_DIR"
+        log "Source directory contents:"
+        ls -la "$SRC_DIR"
+    else
+        error "FIRMWARE_SOURCE ($FIRMWARE_SOURCE) not set or directory not found"
+    fi
+fi
+
+# Check if the USER_CODE environment variable is set
 if [ -z "$USER_CODE" ]; then
     error "USER_CODE environment variable is empty or not set"
 fi
 
-log "Creating user code file..."
+if [ -z "$PIP_ID" ]; then
+    log "PIP_ID not set, will use default based on ENVIRONMENT"
+fi
+
+# Create new user code file in workspace
+log "Creating user code file in workspace..."
 cat > "$USER_CODE_FILE" << EOL
 #include "./include/config.h"
 #include "./include/rgb_led.h"
@@ -42,31 +89,31 @@ ${USER_CODE//\'}
 }
 EOL
 
-log "User code file contents:"
-cat "$USER_CODE_FILE"
-
 # Build the project
-cd "$WORKSPACE_BASE_DIR" || error "Failed to change to workspace directory"
+cd "$WORKSPACE_BASE_DIR" || exit
+
+# Verify platformio.ini exists
+if [ ! -f "$WORKSPACE_BASE_DIR/platformio.ini" ]; then
+    error "platformio.ini not found before build"
+fi
 
 export PLATFORMIO_CACHE_DIR="/root/.platformio"
 export PLATFORMIO_GLOBAL_DIR="/root/.platformio"
 
 log "Starting PlatformIO build..."
-log "Command: platformio run --environment $pio_env --verbose"
+log "Using PlatformIO environment: ${pio_env}"
 
 if ! PLATFORMIO_BUILD_CACHE_DIR="/root/.platformio/cache" \
-    platformio run --environment "$pio_env" --verbose; then
+    platformio run --environment "$pio_env" --silent; then
     error "Build failed"
 fi
 
-log "Build completed successfully"
-
-# Check binary
+# Check if binary exists
 if [ ! -f "$BUILD_DIR/firmware.bin" ]; then
     error "Firmware binary not found after compilation"
 fi
 
-log "Verifying binary..."
+# Verify binary header
 first_byte=$(od -An -t x1 -N 1 "$BUILD_DIR/firmware.bin" | tr -d ' ')
 log "First byte of binary: 0x$first_byte"
 
@@ -74,9 +121,10 @@ if [ "$first_byte" != "e9" ]; then
     error "Invalid binary header (expected 0xE9, got 0x$first_byte)"
 fi
 
-log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")"
+# Output binary info to stderr
+log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
 
-# Output binary
-cat "$BUILD_DIR/firmware.bin"
-
-log "Compilation completed successfully"
+# Only output binary to stdout for local environment
+if [ "$pio_env" = "local" ]; then
+    cat "$BUILD_DIR/firmware.bin"
+fi
