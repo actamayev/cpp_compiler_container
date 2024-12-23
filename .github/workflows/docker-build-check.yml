@@ -99,8 +99,8 @@ jobs:
       #           docker stop $CONTAINER_ID
       #         done
   
-      - name: Cleanup
-        if: always()
-        run: |
-            docker system prune -f
-            docker volume rm firmware-compiler-workspace pio-cache
+      # - name: Cleanup
+      #   if: always()
+      #   run: |
+      #       docker system prune -f
+      #       docker volume rm firmware-compiler-workspace pio-cache
