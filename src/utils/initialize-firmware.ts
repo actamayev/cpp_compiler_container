@@ -3,6 +3,7 @@ import updateFirmware from "../endpoints/update-firmware"
 
 export default async function initializeFirmware(): Promise<void> {
 	try {
+		console.log(process.env)
 		// Create mock req/res objects
 		const mockReq = {} as Request
 		const mockRes = {
