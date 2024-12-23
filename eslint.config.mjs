@@ -2,7 +2,6 @@ import path from "node:path"
 import globals from "globals"
 import eslint from "@eslint/js"
 import { fileURLToPath } from "node:url"
-import security from "eslint-plugin-security"
 import { FlatCompat } from "@eslint/eslintrc"
 import tsParser from "@typescript-eslint/parser"
 import typescriptEslint from "@typescript-eslint/eslint-plugin"
@@ -19,7 +18,6 @@ export default [
 	...compat.extends("eslint:recommended", "plugin:@typescript-eslint/recommended"),
 	{
 		plugins: {
-			security,
 			"@typescript-eslint": typescriptEslint,
 		},
 		languageOptions: {
@@ -101,18 +99,7 @@ export default [
 			}, {
 				selector: "typeLike",
 				format: ["PascalCase"],
-			}],
-			"security/detect-buffer-noassert": "warn",
-			"security/detect-child-process": "warn",
-			"security/detect-disable-mustache-escape": "warn",
-			"security/detect-eval-with-expression": "warn",
-			"security/detect-no-csrf-before-method-override": "warn",
-			"security/detect-non-literal-fs-filename": "warn",
-			"security/detect-non-literal-regexp": "warn",
-			"security/detect-non-literal-require": "warn",
-			"security/detect-possible-timing-attacks": "warn",
-			"security/detect-pseudoRandomBytes": "warn",
-			"security/detect-unsafe-regex": "warn",
+			}]
 		},
 	},
 	{

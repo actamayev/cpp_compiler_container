@@ -24,8 +24,7 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 
 # Install dependencies and build
-RUN npm install && \
-    npm run build
+RUN npm install && npm run build
 
 # Start fresh for the final image
 FROM python:3.13-slim-bullseye
@@ -63,7 +62,6 @@ RUN apt-get update && \
 ENV PLATFORMIO_CACHE_DIR="/root/.platformio" \
     PLATFORMIO_UPLOAD_SPEED="921600" \
     WORKSPACE_DIR="/workspace" \
-    AWS_DEFAULT_REGION="us-east-1" \
     SERVER_PORT=3001
 
 # Install PlatformIO
