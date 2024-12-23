@@ -68,7 +68,6 @@ async function listAllFiles(
 	return files
 }
 
-
 export async function downloadAndExtractRepo(
 	owner: string,
 	repo: string,
