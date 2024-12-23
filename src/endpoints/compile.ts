@@ -37,11 +37,10 @@ export default async function compile(req: Request, res: Response): Promise<void
 		// Stream the file directly back
 		const fileStream = createReadStream(binaryPath)
 		fileStream.pipe(res)
-
+		console.info("Compilation and filestream finished")
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	} catch (error: any) {
 		console.error("Compilation error:", error)
 		res.status(500).json({ success: false, error: error.message })
 	}
 }
-
