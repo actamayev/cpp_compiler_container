@@ -21,11 +21,20 @@ To verify everything is clean:
 	# Check overall docker disk usage
 	docker system df
 
-To get into the staging container:
-	- `ssh -i /Users/arieltamayev/Documents/bdr-staging-ec2-keypair.pem ec2-user@ec2-184-73-137-225.compute-1.amazonaws.com`
+To get into ECS EC2 instance:
+	Staging:
+		ssh -i /Users/arieltamayev/Documents/bdr-staging-ec2-keypair.pem ec2-user@ec2-54-84-250-136.compute-1.amazonaws.com
+	Production:
+		ssh -i /Users/arieltamayev/Documents/bdr-production-ec2.pem ec2-user@ec2-34-207-230-116.compute-1.amazonaws.com
 
-To get into the prod container:
-	- DNE
+To get into the container after inside the instance:
+	`sudo docker exec -it aaf4218537b3 /bin/bash`
+
+Can run node commands within the container:
+	node -e "console.log(process.env)"
+
+To see logs in real time, ssh into the instance, and run:
+	docker logs -f <container-id>
 
 Forcing a new deployment will not work. It will hang in 'in progress' mode because the CPU/memory necessary for the task defintion only allows for 1 Task to run at a time.
 
@@ -37,13 +46,13 @@ To force a new deployment (bascally restarts):
 
 To create a new service (ie after running docker stop <container-id>):
 	aws ecs create-service \
-    --cluster bdr-staging-ecs-ec2-cluster \
-    --service-name staging-firmware-compiler-ec2 \
-    --task-definition staging-firmware-compiler-ec2:LATEST_REVISION \
-    --desired-count 1 \
-    --launch-type EC2 \
-    --scheduling-strategy REPLICA \
-    --deployment-configuration maximumPercent=200,minimumHealthyPercent=100
+		--cluster bdr-staging-ecs-ec2-cluster \
+		--service-name staging-firmware-compiler-ec2 \
+		--task-definition staging-firmware-compiler-ec2:LATEST_REVISION \
+		--desired-count 1 \
+		--launch-type EC2 \
+		--scheduling-strategy REPLICA \
+		--deployment-configuration maximumPercent=200,minimumHealthyPercent=100
 
 To monitor creation of tasks:
 	aws ecs describe-services \
