@@ -16,8 +16,7 @@ df -h /root/.platformio
 
 # Get environment, default to local if not set
 pio_env="${ENVIRONMENT:-local}"
-WORKSPACE_DIR="/workspace"
-WORKSPACE_BASE_DIR="$WORKSPACE_DIR"
+WORKSPACE_BASE_DIR="/workspace"
 SRC_DIR="$WORKSPACE_BASE_DIR/src"
 USER_CODE_FILE="$SRC_DIR/user_code.cpp"
 BUILD_DIR="$WORKSPACE_BASE_DIR/.pio/build/${pio_env}"
