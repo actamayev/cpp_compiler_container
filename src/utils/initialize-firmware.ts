@@ -7,11 +7,11 @@ export default async function initializeFirmware(): Promise<void> {
 		const mockReq = {} as Request
 		const mockRes = {
 			json: (data: string) => {
-				console.log("Firmware initialization result:", data)
+				console.info("Firmware initialization result:", data)
 			},
 			status: (code: number) => ({
 				json: (data: string): void => {
-					console.log(`Firmware initialization failed (${code}):`, data)
+					console.info(`Firmware initialization failed (${code}):`, data)
 				}
 			})
 		} as Response

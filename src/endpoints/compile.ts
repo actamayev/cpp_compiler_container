@@ -12,7 +12,7 @@ interface CompileRequest {
 export default async function compile(req: Request, res: Response): Promise<void> {
 	try {
 		const { userCode, pipUUID } = req.body as CompileRequest
-		console.log(`Starting compilation for PIP: ${pipUUID}`)
+		console.info(`Starting compilation for PIP: ${pipUUID}`)
 
 		process.env.USER_CODE = userCode
 		process.env.PIP_ID = pipUUID
@@ -21,7 +21,7 @@ export default async function compile(req: Request, res: Response): Promise<void
 
 		const { stdout, stderr } = await execAsync("/app/entrypoint.sh")
 
-		console.log("Entrypoint output:", stdout)
+		console.info("Entrypoint output:", stdout)
 		if (stderr) console.error("Entrypoint errors:", stderr)
 
 		// Verify binary exists and stream it back

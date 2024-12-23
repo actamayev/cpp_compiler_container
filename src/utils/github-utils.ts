@@ -68,7 +68,7 @@ async function listAllFiles(
 	return files
 }
 
-// eslint-disable-next-line max-lines-per-function
+
 export async function downloadAndExtractRepo(
 	owner: string,
 	repo: string,
@@ -76,18 +76,13 @@ export async function downloadAndExtractRepo(
 	workspaceDir: string
 ): Promise<void> {
 	try {
-		console.log(`Starting download of ${owner}/${repo}:${branch}`)
 		const octokit = initOctokit()
 
 		// Get list of all files in the repository
-		console.log("Listing all files...")
 		const files = await listAllFiles(octokit, owner, repo, "", branch)
-		console.log(`Found ${files.length} files in repository:`)
-		console.log(files.map(f => f.path))
 
 		// Download and save each file
 		for (const file of files) {
-			console.log(`Downloading: ${file.path}`)
 			const content = await downloadFile(octokit, owner, repo, file.path, branch)
 
 			const targetPath = path.join(workspaceDir, file.path)
@@ -100,32 +95,7 @@ export async function downloadAndExtractRepo(
 
 			// Write file
 			fs.writeFileSync(targetPath, content)
-			console.log(`Saved: ${file.path}`)
 		}
-
-		console.log("Final workspace contents:")
-		function listFilesRecursively(dir: string): string[] {
-			const results: string[] = []
-			const entries = fs.readdirSync(dir)
-
-			for (const entry of entries) {
-				const fullPath = path.join(dir, entry)
-				const stat = fs.statSync(fullPath)
-				const relativePath = path.relative(workspaceDir, fullPath)
-
-				if (stat.isDirectory()) {
-					results.push(`[DIR] ${relativePath}`)
-					results.push(...listFilesRecursively(fullPath))
-				} else {
-					results.push(relativePath)
-				}
-			}
-
-			return results
-		}
-
-		console.log(listFilesRecursively(workspaceDir))
-
 	} catch (error) {
 		console.error("Error downloading repository:", error)
 		throw error

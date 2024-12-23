@@ -17,7 +17,7 @@ app.use(bodyParser.json())
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-	console.log("Health check requested from:", req.ip)
+	console.info("Health check requested from:", req.ip)
 	res.json({
 		status: "healthy",
 		timestamp: new Date().toISOString(),
@@ -31,8 +31,8 @@ app.post("/update-firmware", updateFirmware)
 
 
 app.listen(Number(process.env.SERVER_PORT), "0.0.0.0", async () => {
-	console.log(`Compiler server listening at http://0.0.0.0:${process.env.SERVER_PORT}`)
-	console.log(`Environment: ${process.env.ENVIRONMENT || "unknown"}`)
+	console.info(`Compiler server listening at http://0.0.0.0:${process.env.SERVER_PORT}`)
+	console.info(`Environment: ${process.env.ENVIRONMENT || "unknown"}`)
 
 	// Initialize firmware after server starts
 	await initializeFirmware()

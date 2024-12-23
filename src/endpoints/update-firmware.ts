@@ -12,7 +12,7 @@ export default async function updateFirmware(_req: Request, res: Response): Prom
 		const branch = environment === "production" ? "main" : "staging"
 		const workspaceDir = process.env.WORKSPACE_BASE_DIR || "/workspace"
 
-		console.log(`Fetching firmware from GitHub branch: ${branch} for environment: ${environment}`)
+		console.info(`Fetching firmware from GitHub branch: ${branch} for environment: ${environment}`)
 
 		// Clean workspace with retry logic
 		await execAsync(`find ${workspaceDir} -mindepth 1 -delete`)
