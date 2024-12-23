@@ -17,12 +17,8 @@ export default async function compile(req: Request, res: Response): Promise<void
 		process.env.USER_CODE = userCode
 		process.env.PIP_ID = pipUUID
 
-		console.log("process.env.USER_CODE", process.env.USER_CODE)
-		console.log("process.env.PIP_ID", process.env.PIP_ID)
-
 		await execAsync("rm -rf /workspace/.pio/build/*")
 
-		console.log("cleaned worksapce")
 		const { stdout, stderr } = await execAsync("/app/entrypoint.sh")
 
 		console.info("Entrypoint output:", stdout)
@@ -33,8 +29,6 @@ export default async function compile(req: Request, res: Response): Promise<void
 		if (!existsSync(binaryPath)) {
 			throw new Error("Binary not found after compilation")
 		}
-
-		console.log("verified binary exists")
 
 		// Set appropriate headers
 		res.setHeader("Content-Type", "application/octet-stream")
