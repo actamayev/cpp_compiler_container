@@ -19,7 +19,9 @@ export default async function compile(req: Request, res: Response): Promise<void
 
 		await execAsync("rm -rf /workspace/.pio/build/*")
 
-		const { stdout, stderr } = await execAsync("/app/entrypoint.sh")
+		const { stdout, stderr } = await execAsync("/app/entrypoint.sh", {
+			maxBuffer: 5 * 1024 * 1024  // 5MB buffer
+		})
 
 		console.info("Entrypoint output:", stdout)
 		if (stderr) console.error("Entrypoint errors:", stderr)
