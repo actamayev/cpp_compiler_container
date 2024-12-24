@@ -1,6 +1,7 @@
 import express from "express"
 import bodyParser from "body-parser"
 import compile from "./endpoints/compile"
+import warmupContainer from "./utils/warmup-container"
 import updateFirmware from "./endpoints/update-firmware"
 import initializeFirmware from "./utils/initialize-firmware"
 
@@ -29,11 +30,11 @@ app.get("/health", (req, res) => {
 app.post("/compile", compile)
 app.post("/update-firmware", updateFirmware)
 
-
 app.listen(Number(process.env.SERVER_PORT), "0.0.0.0", async () => {
 	console.info(`Compiler server listening at http://0.0.0.0:${process.env.SERVER_PORT}`)
 	console.info(`Environment: ${process.env.ENVIRONMENT || "unknown"}`)
 
 	// Initialize firmware after server starts
 	await initializeFirmware()
+	await warmupContainer()
 })

@@ -24,7 +24,7 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 
 # Install dependencies and build
-RUN npm install && npm run build
+RUN npm ci && npm run build
 
 # Start fresh for the final image
 FROM python:3.13-slim-bullseye
