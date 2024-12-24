@@ -47,27 +47,6 @@ log "WORKSPACE_BASE_DIR: ${WORKSPACE_BASE_DIR}"
 # Always start with a clean workspace
 init_workspace
 
-# if [ "$pio_env" = "local" ]; then
-#     if [ -n "$FIRMWARE_SOURCE" ] && [ -d "$FIRMWARE_SOURCE" ]; then
-#         log "Setting up local workspace..."
-#         # Copy core build files
-#         cp "$FIRMWARE_SOURCE/platformio.ini" "$WORKSPACE_BASE_DIR/"
-#         cp "$FIRMWARE_SOURCE/partitions_custom.csv" "$WORKSPACE_BASE_DIR/"
-
-#         # Copy source files
-#         mkdir -p "$SRC_DIR"
-#         cp -r "$FIRMWARE_SOURCE/src/"* "$SRC_DIR/"
-        
-#         # Debug output
-#         log "Workspace contents after copy:"
-#         ls -la "$WORKSPACE_BASE_DIR"
-#         log "Source directory contents:"
-#         ls -la "$SRC_DIR"
-#     else
-#         error "FIRMWARE_SOURCE ($FIRMWARE_SOURCE) not set or directory not found"
-#     fi
-# fi
-
 # Check if the USER_CODE environment variable is set
 if [ -z "$USER_CODE" ]; then
     error "USER_CODE environment variable is empty or not set"
@@ -120,11 +99,3 @@ log "First byte of binary: 0x$first_byte"
 if [ "$first_byte" != "e9" ]; then
     error "Invalid binary header (expected 0xE9, got 0x$first_byte)"
 fi
-
-# Output binary info to stderr
-# log "Binary details: $(ls -l "$BUILD_DIR/firmware.bin")" >&2
-
-# Only output binary to stdout for local environment
-# if [ "$pio_env" = "local" ]; then
-#     cat "$BUILD_DIR/firmware.bin"
-# fi
