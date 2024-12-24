@@ -7,11 +7,12 @@ const execAsync = promisify(exec)
 interface CompileRequest {
     userCode: string
     pipUUID: string
+    isWarmup?: boolean
 }
 
 export default async function compile(req: Request, res: Response): Promise<void> {
 	try {
-		const { userCode, pipUUID } = req.body as CompileRequest
+		const { userCode, pipUUID, isWarmup = false } = req.body as CompileRequest
 		console.info(`Starting compilation for PIP: ${pipUUID}`)
 
 		process.env.USER_CODE = userCode
@@ -20,7 +21,7 @@ export default async function compile(req: Request, res: Response): Promise<void
 		await execAsync("rm -rf /workspace/.pio/build/*")
 
 		const { stdout, stderr } = await execAsync("/app/entrypoint.sh", {
-			maxBuffer: 5 * 1024 * 1024  // 5MB buffer
+			maxBuffer: 5 * 1024 * 1024
 		})
 
 		console.info("Entrypoint output:", stdout)
@@ -30,6 +31,12 @@ export default async function compile(req: Request, res: Response): Promise<void
 		const binaryPath = `/workspace/.pio/build/${process.env.ENVIRONMENT}/firmware.bin`
 		if (!existsSync(binaryPath)) {
 			throw new Error("Binary not found after compilation")
+		}
+
+		if (isWarmup) {
+			// For warmup, just return success
+			res.json({ success: true, message: "Warmup compilation successful" })
+			return
 		}
 
 		// Set appropriate headers
